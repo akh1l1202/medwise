@@ -1,6 +1,8 @@
-# MedWise
-
-> **Offline-first mobile medicine cabinet, active salt equivalence matcher, and smart chemist-counter companion for Indian households.**
+<div align="center">
+  <img src="assets/images/logo.jpg" alt="MedWise Logo" width="160" style="border-radius: 24px;" />
+  <h1>MedWise</h1>
+  <p><strong>Offline-first mobile medicine cabinet, active salt equivalence matcher, and smart chemist-counter companion for Indian households.</strong></p>
+</div>
 
 ---
 
