@@ -1,4 +1,4 @@
-# MedWise (formerly RxGuard / ContraRx)
+# MedWise
 
 > **Offline-first mobile medicine cabinet, active salt equivalence matcher, and smart chemist-counter companion for Indian households.**
 
