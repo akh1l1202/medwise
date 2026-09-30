@@ -30,6 +30,7 @@ MedWise transforms a chaotic home medicine stash into an intelligent, digitized 
 | [**`docs/TECHNICAL_ARCHITECTURE.md`**](./docs/TECHNICAL_ARCHITECTURE.md) | **Technical Architecture**: Data models, SQLite/Drift schema, Indian medicine dataset strategy, OCR fuzzy-matching algorithms, and package configurations. |
 | [**`docs/ROADMAP_AND_VIVA.md`**](./docs/ROADMAP_AND_VIVA.md) | **Execution & Evaluation Guide**: 3-4 week sprint roadmap, technical trap mitigation, and step-by-step viva presentation script. |
 | [**`docs/PROJECT_IDEATION_AND_COMPETITIVE_ANALYSIS.md`**](./docs/PROJECT_IDEATION_AND_COMPETITIVE_ANALYSIS.md) | **Gap Analysis & Decision Log**: Proof of 0% batch overlap, NLM API & RxNorm pitfall documentation, and handwritten OCR rationale. |
+| [**`docs/wireframes/`**](./docs/wireframes/README.md) | **UI/UX Wireframe Suite**: All 5 master wireframes generated via Stitch, design tokens, and Flutter widget implementation blueprints. |
 
 ---
 
