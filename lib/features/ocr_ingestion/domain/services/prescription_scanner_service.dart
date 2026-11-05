@@ -11,14 +11,32 @@ final prescriptionScannerServiceProvider = Provider<PrescriptionScannerService>(
   return PrescriptionScannerService(catalogRepo);
 });
 
+enum DocumentType {
+  medicalPrescription,
+  utilityOrTaxBill,
+  unrecognizedDocument,
+}
+
 class PrescriptionScanResult {
   final List<PrescriptionItemCandidate> candidates;
   final List<String> rawExtractedLines;
+  final DocumentType documentType;
+  final String? rejectionReason;
+  final double overallReadabilityScore;
+  final bool isHandwrittenOrLowReadability;
 
   const PrescriptionScanResult({
     required this.candidates,
     required this.rawExtractedLines,
+    this.documentType = DocumentType.medicalPrescription,
+    this.rejectionReason,
+    this.overallReadabilityScore = 1.0,
+    this.isHandwrittenOrLowReadability = false,
   });
+
+  bool get isPrescription => documentType == DocumentType.medicalPrescription;
+  bool get requiresManualInput => isHandwrittenOrLowReadability || candidates.isEmpty;
+  int get readabilityPercentage => (overallReadabilityScore * 100).round().clamp(0, 100);
 }
 
 class PrescriptionScannerService {
@@ -46,6 +64,125 @@ class PrescriptionScannerService {
     RegExp(r'\b(?:signature|consultant|doctor\s*signature|seal)\b', caseSensitive: false),
   ];
 
+  /// Patterns indicating non-prescription documents (e.g. electricity, gas, water, or appliance bills)
+  static final List<RegExp> _billPatterns = [
+    RegExp(r'\b(?:bill\s*of\s*supply|tax\s*invoice|retail\s*invoice|receipt)\b', caseSensitive: false),
+    RegExp(r'\b(?:electricity|power|gas\s*bill|water\s*bill|property\s*tax)\b', caseSensitive: false),
+    RegExp(r'\b(?:consumer\s*(?:no|number|id)|ca\s*no|k\s*no|meter\s*(?:no|number|reading))\b', caseSensitive: false),
+    RegExp(r'\b(?:kwh|kva|connected\s*load|contract\s*demand|tariff)\b', caseSensitive: false),
+    RegExp(r'\b(?:discom|mngl|igcl|mahadiscom|tata\s*power|adani\s*electricity|bses)\b', caseSensitive: false),
+    RegExp(r'\b(?:municipal\s*corporation|ward\s*office|nagar\s*nigam|gram\s*panchayat)\b', caseSensitive: false),
+    RegExp(r'\b(?:gstin|gst\s*no|service\s*tax|cin\s*no)\b', caseSensitive: false),
+    RegExp(r'\b(?:total\s*amount\s*payable|due\s*date|billing\s*unit|prompt\s*payment)\b', caseSensitive: false),
+    RegExp(r'\b(?:authorised\s*service\s*center|service\s*centre|appliance|product\s*query)\b', caseSensitive: false),
+  ];
+
+  /// Positive medical markers confirming legitimate clinical prescription documents
+  static final List<RegExp> _prescriptionConfidencePatterns = [
+    RegExp(r'^\s*dr\.?\s+[a-z]', caseSensitive: false),
+    RegExp(r'\b(?:doctor|physician|surgeon|consultant|clinic|hospital|dispensary|nursing\s*home)\b', caseSensitive: false),
+    RegExp(r'\b(?:mbbs|bams|bhms|md|ms|dnb|fcps|dorl|m\.d\.|m\.b\.b\.s\.)\b', caseSensitive: false),
+    RegExp(r'\b(?:rx|r\/x|patient|pt\.?|diagnosis|symptoms|chief\s*complaint)\b', caseSensitive: false),
+    RegExp(r'\b(?:tab\.?|cap\.?|syp\.?|tablets?|capsules?|syrup|dosage|after\s*food|before\s*food)\b', caseSensitive: false),
+    RegExp(r'\b(?:1-[012]-[012]|[012]-[012]-1|od|bd|bid|tid|tds|qid|sos|hs)\b', caseSensitive: false),
+  ];
+
+  /// Classifies whether extracted OCR lines belong to a medical prescription or an unrelated bill/invoice
+  DocumentType classifyDocument(List<String> lines) {
+    if (lines.isEmpty) return DocumentType.unrecognizedDocument;
+
+    final fullText = lines.join(' ').toLowerCase();
+
+    int billMatches = 0;
+    for (final pattern in _billPatterns) {
+      if (pattern.hasMatch(fullText)) {
+        billMatches++;
+      }
+    }
+
+    int prescriptionMatches = 0;
+    for (final pattern in _prescriptionConfidencePatterns) {
+      if (pattern.hasMatch(fullText)) {
+        prescriptionMatches++;
+      }
+    }
+
+    // If 2 or more strong bill indicators are present and medical indicators are sparse (<= 1),
+    // classify as a non-prescription utility/tax bill
+    if (billMatches >= 2 && prescriptionMatches <= 1) {
+      return DocumentType.utilityOrTaxBill;
+    }
+
+    return DocumentType.medicalPrescription;
+  }
+
+  /// Calculates the overall readability confidence (0.0 to 1.0) of a prescription.
+  /// Detects whether doctor handwriting is legible or unreadable cursive/distorted text.
+  double calculatePrescriptionReadability({
+    required List<PrescriptionItemCandidate> candidates,
+    required List<String> rawLines,
+  }) {
+    if (rawLines.isEmpty) return 0.0;
+
+    // Filter out administrative headers to evaluate medicine lines and prescription body
+    final bodyLines = rawLines.where((l) => !_isAdministrativeHeader(l.trim())).toList();
+    if (bodyLines.isEmpty) return 0.20;
+
+    // 1. If medicine candidates were extracted from the lines
+    if (candidates.isNotEmpty) {
+      double totalScore = 0.0;
+      for (final c in candidates) {
+        totalScore += c.confidenceScore;
+      }
+      final avgCandidateScore = totalScore / candidates.length;
+
+      // Fraction of candidates matching known catalog medicines with high confidence (>= 0.70)
+      final highConfidenceCount = candidates.where((c) => c.confidenceScore >= 0.70).length;
+      final highConfidenceRatio = highConfidenceCount / candidates.length;
+
+      // If at least half the candidates have high confidence and average >= 0.65,
+      // it's a clear computerized or legible prescription
+      if (avgCandidateScore >= 0.65 && highConfidenceRatio >= 0.50) {
+        return avgCandidateScore.clamp(0.0, 1.0);
+      } else {
+        // Mixed or low-confidence uncataloged handwriting
+        return (avgCandidateScore * 0.7 + highConfidenceRatio * 0.3).clamp(0.15, 0.65);
+      }
+    }
+
+    // 2. If no confident candidates were found, evaluate character morphology and fragmentation:
+    int totalLetters = 0;
+    int noiseSymbols = 0;
+    int shortWords = 0;
+    int totalWords = 0;
+
+    for (final line in bodyLines) {
+      final words = line.trim().split(RegExp(r'\s+'));
+      for (final w in words) {
+        if (w.isEmpty) continue;
+        totalWords++;
+        if (w.length <= 2) shortWords++;
+        for (final rune in w.runes) {
+          final ch = String.fromCharCode(rune);
+          if (RegExp(r'[a-zA-Z0-9]').hasMatch(ch)) {
+            totalLetters++;
+          } else {
+            noiseSymbols++;
+          }
+        }
+      }
+    }
+
+    if (totalWords == 0) return 0.20;
+
+    final symbolNoiseRatio = (noiseSymbols / (totalLetters + noiseSymbols + 1)).clamp(0.0, 1.0);
+    final shortWordRatio = (shortWords / totalWords).clamp(0.0, 1.0);
+
+    // High symbol noise and high short fragment ratio indicates distorted or illegible doctor cursive
+    double score = 0.50 - (symbolNoiseRatio * 0.30) - (shortWordRatio * 0.20);
+    return score.clamp(0.15, 0.49);
+  }
+
   Future<PrescriptionScanResult> processPrescriptionImage(String imagePath) async {
     final inputImage = InputImage.fromFilePath(imagePath);
     final RecognizedText recognizedText = await _recognizer.processImage(inputImage);
@@ -65,12 +202,34 @@ class PrescriptionScannerService {
       debugPrint('[PrescriptionScanner] [$i]: "${extractedLines[i]}"');
     }
 
+    final docType = classifyDocument(extractedLines);
+    if (docType == DocumentType.utilityOrTaxBill) {
+      debugPrint('[PrescriptionScanner] ⚠️ Scanned image detected as non-prescription (utility/tax bill)');
+      return PrescriptionScanResult(
+        candidates: const [],
+        rawExtractedLines: extractedLines,
+        documentType: DocumentType.utilityOrTaxBill,
+        overallReadabilityScore: 0.0,
+        isHandwrittenOrLowReadability: true,
+        rejectionReason: 'The scanned document appears to be a utility, electricity, or tax bill, not a doctor\'s prescription. Please scan a valid medical prescription.',
+      );
+    }
+
     final candidates = await parsePrescriptionLines(extractedLines);
     debugPrint('[PrescriptionScanner] Successfully identified ${candidates.length} medicine candidates');
+
+    final readabilityScore = calculatePrescriptionReadability(
+      candidates: candidates,
+      rawLines: extractedLines,
+    );
+    final isLowReadability = readabilityScore < 0.50;
 
     return PrescriptionScanResult(
       candidates: candidates,
       rawExtractedLines: extractedLines,
+      documentType: docType,
+      overallReadabilityScore: readabilityScore,
+      isHandwrittenOrLowReadability: isLowReadability,
     );
   }
 

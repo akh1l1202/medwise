@@ -6,6 +6,8 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/confidence_badge_utils.dart';
 import '../../../ocr_ingestion/data/models/prescription_item_candidate.dart';
 import '../../../ocr_ingestion/domain/services/prescription_scanner_service.dart';
+import '../../../medicine_catalog/data/models/medicine_record.dart';
+import '../../../medicine_catalog/data/repositories/medicine_catalog_repository.dart';
 import '../../data/models/chemist_cart_item.dart';
 import '../controllers/chemist_counter_controller.dart';
 
@@ -22,6 +24,63 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
   bool _isProcessing = false;
   List<PrescriptionItemCandidate> _candidates = [];
   List<String> _rawLines = [];
+  DocumentType _documentType = DocumentType.medicalPrescription;
+  String? _rejectionReason;
+  double _overallReadabilityScore = 1.0;
+  bool _isHandwrittenOrLowReadability = false;
+
+  final TextEditingController _manualSearchController = TextEditingController();
+  List<MedicineRecord> _manualSearchResults = [];
+  bool _isSearchingCatalog = false;
+
+  @override
+  void dispose() {
+    _manualSearchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onManualSearchChanged(String query) async {
+    final clean = query.trim();
+    if (clean.length < 2) {
+      setState(() => _manualSearchResults = []);
+      return;
+    }
+    setState(() => _isSearchingCatalog = true);
+    final repo = ref.read(medicineCatalogRepositoryProvider);
+    final results = await repo.searchMedicines(clean, limit: 5);
+    if (mounted) {
+      setState(() {
+        _manualSearchResults = results;
+        _isSearchingCatalog = false;
+      });
+    }
+  }
+
+  void _addMedicineFromCatalog(MedicineRecord med) {
+    setState(() {
+      _candidates.add(
+        PrescriptionItemCandidate(
+          rawLine: 'Manually Added: ${med.brandName}',
+          matchedRecord: med,
+          confidenceScore: 1.0,
+          quantity: 10,
+          dosageInstruction: '1-0-1 after food',
+          isSelected: true,
+        ),
+      );
+      _manualSearchController.clear();
+      _manualSearchResults = [];
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Added "${med.brandName}" to prescribed list!'),
+          backgroundColor: AppColors.safe,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+  }
 
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -33,6 +92,11 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
         _isProcessing = true;
         _candidates = [];
         _rawLines = [];
+        _documentType = DocumentType.medicalPrescription;
+        _rejectionReason = null;
+        _overallReadabilityScore = 1.0;
+        _isHandwrittenOrLowReadability = false;
+        _manualSearchResults = [];
       });
 
       final scanner = ref.read(prescriptionScannerServiceProvider);
@@ -41,6 +105,10 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
       setState(() {
         _candidates = result.candidates;
         _rawLines = result.rawExtractedLines;
+        _documentType = result.documentType;
+        _rejectionReason = result.rejectionReason;
+        _overallReadabilityScore = result.overallReadabilityScore;
+        _isHandwrittenOrLowReadability = result.isHandwrittenOrLowReadability;
         _isProcessing = false;
       });
     } catch (e) {
@@ -67,6 +135,158 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
         ),
       );
     }
+  }
+
+  bool _showManualSearchField = false;
+
+  void _editCandidateDialog(PrescriptionItemCandidate candidate, int index) {
+    final nameCtrl = TextEditingController(text: candidate.matchedRecord.brandName);
+    final qtyCtrl = TextEditingController(text: candidate.quantity.toString());
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Prescribed Medicine', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              decoration: const InputDecoration(labelText: 'Medicine / Brand Name', isDense: true),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: qtyCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Quantity to Buy', isDense: true),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final newName = nameCtrl.text.trim();
+              final newQty = int.tryParse(qtyCtrl.text.trim()) ?? candidate.quantity;
+              if (newName.isNotEmpty) {
+                setState(() {
+                  _candidates[index] = candidate.copyWith(
+                    matchedRecord: candidate.matchedRecord.copyWith(brandName: newName),
+                    quantity: newQty,
+                    confidenceScore: 1.0, // Human verified
+                    isSelected: true,
+                  );
+                });
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReadabilityBannerAndSearchBar() {
+    final isLow = _isHandwrittenOrLowReadability || _candidates.isEmpty;
+    final percentage = (_overallReadabilityScore * 100).toInt().clamp(0, 100);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isLow ? AppColors.warningSurface : AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isLow ? AppColors.warningBorder : AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (isLow) ...[
+            Row(
+              children: [
+                const Icon(Icons.draw_outlined, color: AppColors.warning, size: 22),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Low Handwriting Readability ($percentage% Confidence)',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Doctor\'s cursive handwriting is difficult to decipher with full certainty. Please search and add prescribed medicines manually to ensure safety.',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 10),
+          ],
+          TextField(
+            controller: _manualSearchController,
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: 'Search 246,000 medicines (e.g. Dolo, Rebegen, Sompraz)...',
+              hintStyle: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+              prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.primary),
+              suffixIcon: _isSearchingCatalog
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: Padding(
+                        padding: EdgeInsets.all(10),
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : _manualSearchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 16),
+                          onPressed: () {
+                            _manualSearchController.clear();
+                            setState(() => _manualSearchResults = []);
+                          },
+                        )
+                      : null,
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            ),
+            onChanged: _onManualSearchChanged,
+          ),
+          if (_manualSearchResults.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 180),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.border),
+                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: _manualSearchResults.length,
+                separatorBuilder: (context, index) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final med = _manualSearchResults[index];
+                  return ListTile(
+                    dense: true,
+                    title: Text(med.brandName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    subtitle: Text('${med.activeSalt}${med.strength.isNotEmpty ? " • ${med.strength}" : ""}', style: const TextStyle(fontSize: 11)),
+                    trailing: const Icon(Icons.add_circle, color: AppColors.primary, size: 22),
+                    onTap: () => _addMedicineFromCatalog(med),
+                  );
+                },
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   void _importSelectedToCart() {
@@ -237,39 +457,84 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
                 ),
               ),
             ),
+          ] else if (_documentType == DocumentType.utilityOrTaxBill) ...[
+            // Explicit rejection of non-prescription utility / tax / service bills
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppColors.dangerSurface,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.dangerBorder, width: 2),
+                        ),
+                        child: const Icon(
+                          Icons.receipt_long_outlined,
+                          size: 48,
+                          color: AppColors.danger,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Non-Prescription Document Detected',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.danger,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        _rejectionReason ??
+                            'The scanned image appears to be a utility, electricity, or tax bill rather than a doctor\'s prescription.\n\nPlease scan a medical prescription or OPD slip.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Scan Doctor\'s Prescription', style: TextStyle(fontWeight: FontWeight.bold)),
+                        onPressed: () => setState(() {
+                          _imagePath = null;
+                          _documentType = DocumentType.medicalPrescription;
+                          _rejectionReason = null;
+                        }),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ] else if (_candidates.isEmpty) ...[
-            // Empty auto-matches, but show raw extracted lines if available
+            // Empty auto-matches, provide manual search bar directly and raw lines
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  _buildReadabilityBannerAndSearchBar(),
+                  const SizedBox(height: 8),
                   if (_rawLines.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.warningSurface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.warningBorder),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.touch_app, color: AppColors.warning, size: 22),
-                          const SizedBox(width: 10),
-                          const Expanded(
-                            child: Text(
-                              'Tap any line below to add it directly as a medicine:',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Extracted Lines (${_rawLines.length})',
+                          'Extracted Raw Lines (${_rawLines.length})',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                         TextButton(
@@ -304,22 +569,25 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
                     ),
                   ] else ...[
                     const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.search_off, size: 48, color: AppColors.textMuted),
-                          SizedBox(height: 12),
-                          Text(
-                            'No text could be extracted',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
-                          SizedBox(height: 6),
-                          Text(
-                            'Ensure the slip is well-lit and clearly photographed.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                          ),
-                        ],
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.search_off, size: 48, color: AppColors.textMuted),
+                            SizedBox(height: 12),
+                            Text(
+                              'No readable text detected',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            SizedBox(height: 6),
+                            Text(
+                              'Please use the search box above to manually enter your prescribed drugs.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -328,6 +596,8 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
             ),
           ] else ...[
             // Candidate Medicines List
+            if (_isHandwrittenOrLowReadability || _showManualSearchField)
+              _buildReadabilityBannerAndSearchBar(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -335,9 +605,18 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
                   'Detected Medicines (${_candidates.length})',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                 ),
-                TextButton(
-                  onPressed: () => setState(() => _imagePath = null),
-                  child: const Text('Retake Photo', style: TextStyle(fontSize: 12)),
+                Row(
+                  children: [
+                    TextButton.icon(
+                      icon: Icon(_showManualSearchField ? Icons.close : Icons.add, size: 16),
+                      label: Text(_showManualSearchField ? 'Hide Search' : 'Add Manually', style: const TextStyle(fontSize: 12)),
+                      onPressed: () => setState(() => _showManualSearchField = !_showManualSearchField),
+                    ),
+                    TextButton(
+                      onPressed: () => setState(() => _imagePath = null),
+                      child: const Text('Retake Photo', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -413,6 +692,24 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
                                     ConfidenceBadgeUtils.buildBadgeWidget(
                                       candidate.level,
                                       candidate.confidencePercentage,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    IconButton(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      icon: const Icon(Icons.edit_outlined, size: 16, color: AppColors.primary),
+                                      tooltip: 'Edit name or quantity',
+                                      onPressed: () => _editCandidateDialog(candidate, index),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    IconButton(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      icon: const Icon(Icons.close, size: 16, color: AppColors.textMuted),
+                                      tooltip: 'Remove',
+                                      onPressed: () => setState(() => _candidates.removeAt(index)),
                                     ),
                                   ],
                                 ),

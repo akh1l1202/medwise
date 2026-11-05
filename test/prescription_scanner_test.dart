@@ -222,5 +222,124 @@ void main() {
       final candidates = await service.parsePrescriptionLines(noiseLines);
       expect(candidates, isEmpty, reason: 'Pure noise lines without dosage or medicine indicators must be dropped');
     });
+
+    test('Rejects electricity and utility bills as non-prescription documents', () {
+      final utilityBillLines = [
+        'Navi Mumbai Municipal Corporation',
+        'G Ward Office Airoli Corporation',
+        'BILL OF SUPPLY FOR THE MONTH OF - SEPTEMBER-2026',
+        'BILL NO(GGN): 000003520314445',
+        'CONSUMER NO: 000091959003',
+        'GSTIN: 27AAECM2933K1ZB',
+        'METER NO: 12419 Phase: 3 CONNECTED LOAD: 2.00 KW TARIFF: LT-I',
+        'CURRENT CHARGES: 6740.00 DUE DATE: 04-10-2026',
+        'TOTAL AMOUNT PAYABLE: 6820.00',
+        'Scan this QR Code with BHIM App for UPI Payment',
+      ];
+
+      final docType = service.classifyDocument(utilityBillLines);
+      expect(docType, equals(DocumentType.utilityOrTaxBill));
+    });
+
+    test('Rejects service/appliance invoices as non-prescription documents', () {
+      final applianceInvoiceLines = [
+        'GOLDEN SERVICE 9324632837',
+        'Authorised Service Center Faber',
+        'Shop No. 15, Purnashanti Height, Thane West - 400 601',
+        'GST No.: 27FMFPK6465M1ZC',
+        'Tax Invoice No. 2028',
+        'Product: HICRICHICT Chimney Status: OW',
+        'Total Amount: 1200.00',
+      ];
+
+      final docType = service.classifyDocument(applianceInvoiceLines);
+      expect(docType, equals(DocumentType.utilityOrTaxBill));
+    });
+
+    test('Classifies genuine clinic and hospital prescriptions correctly', () {
+      final realPrescriptionLines = [
+        'Criti-Care ICCU, MULTISPECIALITY HOSPITAL & TRAUMA CENTRE',
+        'Dr. Sundeep G. Mestri MBBS, M.D (Bom.)',
+        'Dr. Sameer R. Dumir MBBS, M.D. Consulting Cardiologist',
+        'Patient: MR. AKHIL TYAGI (20y, Male)',
+        'Diagnosis: STOMACH DISCOMFORT, Fever 99.7',
+        'Rx',
+        '1) SOMPRAZ D 40 CAPSULE 1-0-0 Daily - 10 Days',
+        'Composition : Domperidone 30 MG + Esomeprazole 40 MG',
+        'Timing : 1 Before breakfast',
+        '2) UNIENZYME TAB 0-1-0 Daily - 10 Days',
+      ];
+
+      final docType = service.classifyDocument(realPrescriptionLines);
+      expect(docType, equals(DocumentType.medicalPrescription));
+    });
+
+    test('Scores illegible handwritten cursive as low readability (< 50%) and prompts manual input', () async {
+      // Real handwritten ENT prescription lines from Dr. Sachin Nemane photo (IMG20261105194901.jpg & 194645.jpg)
+      final cursiveLines = [
+        'Dr. Sachin T. Nemane MS DORL',
+        'Date: 20/06/2026',
+        'ov @ 4',
+        'Cary',
+        '@ 7 Ow Cse2?',
+        'lara',
+        'Gr eX 7',
+        'Go Kare ok Oe',
+        '@ Lise pee ae ge',
+      ];
+
+      final candidates = await service.parsePrescriptionLines(cursiveLines);
+      final score = service.calculatePrescriptionReadability(
+        candidates: candidates,
+        rawLines: cursiveLines,
+      );
+
+      // Must be evaluated as low readability (< 50% confidence)
+      expect(score, lessThan(0.50));
+      expect(score, greaterThanOrEqualTo(0.15));
+
+      final result = PrescriptionScanResult(
+        candidates: candidates,
+        rawExtractedLines: cursiveLines,
+        overallReadabilityScore: score,
+        isHandwrittenOrLowReadability: score < 0.50,
+      );
+
+      expect(result.isHandwrittenOrLowReadability, isTrue);
+      expect(result.requiresManualInput, isTrue);
+      expect(result.readabilityPercentage, lessThan(50));
+    });
+
+    test('Scores clean printed prescriptions with high readability (>= 85%)', () async {
+      final printedLines = [
+        'Apollo Clinic Healthcare',
+        'Dr. Rajesh Verma MD',
+        'Rx',
+        '1. Tab Dolo 650 1-0-1 x 5 days',
+        '2. Tab Pantocid 40 1-0-0 before food',
+        '3. Tab Augmentin 625 Duo 1-0-1 x 3 days',
+      ];
+
+      final candidates = await service.parsePrescriptionLines(printedLines);
+      expect(candidates.length, equals(3));
+
+      final score = service.calculatePrescriptionReadability(
+        candidates: candidates,
+        rawLines: printedLines,
+      );
+
+      expect(score, greaterThanOrEqualTo(0.85));
+
+      final result = PrescriptionScanResult(
+        candidates: candidates,
+        rawExtractedLines: printedLines,
+        overallReadabilityScore: score,
+        isHandwrittenOrLowReadability: score < 0.50,
+      );
+
+      expect(result.isHandwrittenOrLowReadability, isFalse);
+      expect(result.requiresManualInput, isFalse);
+      expect(result.readabilityPercentage, greaterThanOrEqualTo(85));
+    });
   });
 }

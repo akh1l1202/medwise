@@ -87,5 +87,44 @@ void main() {
       final result = service.extractExpiryDate(linesWithOnlyMfd);
       expect(result, isNull);
     });
+
+    test('Correctly resolves expiry date in multi-line Indian blister pack layouts (e.g. Ketorolac photo)', () {
+      // Lines taken directly from desktop photo IMG20261105201125.jpg (Dr. Reddy's Ketorolac 10mg)
+      final photoLines = [
+        'Each uncoated dispersible tablet contains: Ketorolac Tromethamine IP 10 mg',
+        'Dr. Reddy\'s Laboratories Ltd.',
+        'B.No., MFG.Dt., EXP.Dt., MRP Rs. PER 15 TABS',
+        'INCL. OF ALL TAXES #',
+        '2501750 JUL.2025',
+        'JUN.2028 177.25',
+      ];
+
+      final expiry = service.extractExpiryDate(photoLines);
+      // Manufacturing is JUL.2025, Expiry is JUN.2028 -> Must pick JUN.2028!
+      expect(expiry, equals('06/2028'));
+    });
+
+    test('Extracts medicine batch number from real blister strip text', () {
+      // Direct packaging line from IMG20261105200615.jpg
+      expect(
+        service.extractBatchNumber(['B.NO.SBO0150A', 'M FG. 03/2026', 'EXP. 02/2030']),
+        equals('SBO0150A'),
+      );
+
+      // Direct packaging line from IMG20261105201136.jpg (Myoril)
+      expect(
+        service.extractBatchNumber(['myoril', 'CORONA Remedies Limited', 'B.No.0225', 'P:OCT.']),
+        equals('0225'),
+      );
+
+      // Multi-line header from IMG20261105201125.jpg
+      expect(
+        service.extractBatchNumber([
+          'B.No., MFG.Dt., EXP.Dt., MRP Rs.',
+          '2501750 JUL.2025',
+        ]),
+        equals('2501750'),
+      );
+    });
   });
 }

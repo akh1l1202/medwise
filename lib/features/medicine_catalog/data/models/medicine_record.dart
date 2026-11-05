@@ -48,6 +48,26 @@ class MedicineRecord {
     };
   }
 
+  MedicineRecord copyWith({
+    int? id,
+    String? brandName,
+    String? activeSalt,
+    String? strength,
+    String? manufacturer,
+    String? dosageForm,
+    List<String>? commonSymptoms,
+  }) {
+    return MedicineRecord(
+      id: id ?? this.id,
+      brandName: brandName ?? this.brandName,
+      activeSalt: activeSalt ?? this.activeSalt,
+      strength: strength ?? this.strength,
+      manufacturer: manufacturer ?? this.manufacturer,
+      dosageForm: dosageForm ?? this.dosageForm,
+      commonSymptoms: commonSymptoms ?? this.commonSymptoms,
+    );
+  }
+
   @override
   String toString() => '$brandName ($activeSalt - $strength)';
 }

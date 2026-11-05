@@ -28,6 +28,7 @@ class _OcrScannerScreenState extends ConsumerState<OcrScannerScreen> {
   final _saltController = TextEditingController();
   final _strengthController = TextEditingController();
   final _expiryController = TextEditingController();
+  final _batchController = TextEditingController();
   final _quantityController = TextEditingController(text: '10');
   String _selectedForm = 'Tablet';
   String _selectedLocation = 'Living Room Drawer';
@@ -40,6 +41,7 @@ class _OcrScannerScreenState extends ConsumerState<OcrScannerScreen> {
     _saltController.dispose();
     _strengthController.dispose();
     _expiryController.dispose();
+    _batchController.dispose();
     _quantityController.dispose();
     super.dispose();
   }
@@ -80,6 +82,12 @@ class _OcrScannerScreenState extends ConsumerState<OcrScannerScreen> {
       _expiryController.text = result.detectedExpiryDate!;
     } else {
       _expiryController.clear(); // Never insert fake dates
+    }
+
+    if (result.detectedBatchNumber != null) {
+      _batchController.text = result.detectedBatchNumber!;
+    } else {
+      _batchController.clear();
     }
   }
 
@@ -330,12 +338,55 @@ class _OcrScannerScreenState extends ConsumerState<OcrScannerScreen> {
                         '⚠️ Expiry not detected (enter manually below)',
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.danger),
                       ),
+                    if (result.detectedBatchNumber != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Detected Batch: ${result.detectedBatchNumber}',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
+
+          // Informative banner if front plastic side of blister pack was photographed
+          if (result.hasNoExtractedText) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.warningSurface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.warningBorder),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.flip_to_back_rounded, color: AppColors.warning, size: 24),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'No Printed Text Found (Front of Strip)',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Most medicine blister strips print brand names, batch numbers, and expiry dates on the silver foil on the back. Flip the strip and tap "Scan Another Medicine" or enter details below.',
+                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           // "Did you mean?" suggestions chips
           if (result.allCandidates.length > 1) ...[
@@ -398,6 +449,11 @@ class _OcrScannerScreenState extends ConsumerState<OcrScannerScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _batchController,
+            decoration: const InputDecoration(labelText: 'Batch Number (Optional)'),
           ),
           const SizedBox(height: 12),
           Row(
