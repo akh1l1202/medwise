@@ -1,0 +1,198 @@
+[
+  {
+    "salt_a": "aspirin",
+    "salt_b": "warfarin",
+    "severity": "CRITICAL",
+    "effect": "Severe hemorrhage and internal bleeding risk due to combined antiplatelet and anticoagulant action.",
+    "recommendation": "Avoid concurrent use unless strictly supervised by a cardiologist. Monitor INR levels."
+  },
+  {
+    "salt_a": "ibuprofen",
+    "salt_b": "aspirin",
+    "severity": "CRITICAL",
+    "effect": "Ibuprofen interferes with the cardioprotective antiplatelet effect of low-dose aspirin and increases gastrointestinal bleeding risk.",
+    "recommendation": "Take aspirin at least 30 minutes before or 8 hours after ibuprofen, or switch to paracetamol."
+  },
+  {
+    "salt_a": "ibuprofen",
+    "salt_b": "warfarin",
+    "severity": "CRITICAL",
+    "effect": "Marked increase in gastrointestinal ulceration and major hemorrhagic bleeding risk.",
+    "recommendation": "Avoid NSAIDs with oral anticoagulants. Paracetamol is the preferred analgesic alternative."
+  },
+  {
+    "salt_a": "ibuprofen",
+    "salt_b": "paracetamol",
+    "severity": "MODERATE",
+    "effect": "Concurrent frequent use increases renal strain and gastric discomfort.",
+    "recommendation": "Stagger dosing intervals by at least 3 hours. Do not exceed maximum daily dosage limits."
+  },
+  {
+    "salt_a": "diclofenac",
+    "salt_b": "aspirin",
+    "severity": "CRITICAL",
+    "effect": "Dual NSAID action significantly multiplies the risk of stomach perforation, ulcers, and acute kidney injury.",
+    "recommendation": "Never combine two non-steroidal anti-inflammatory drugs concurrently."
+  },
+  {
+    "salt_a": "diclofenac",
+    "salt_b": "ibuprofen",
+    "severity": "CRITICAL",
+    "effect": "Additive gastrointestinal toxicity and risk of nephrotoxicity.",
+    "recommendation": "Avoid taking multiple NSAIDs at the same time."
+  },
+  {
+    "salt_a": "metformin",
+    "salt_b": "alcohol",
+    "severity": "CRITICAL",
+    "effect": "Potentiates the risk of severe, life-threatening lactic acidosis and profound hypoglycemia.",
+    "recommendation": "Completely abstain from alcohol consumption while taking Metformin."
+  },
+  {
+    "salt_a": "metformin",
+    "salt_b": "glimepiride",
+    "severity": "MODERATE",
+    "effect": "Synergistic glucose-lowering effect increases susceptibility to acute hypoglycemia.",
+    "recommendation": "Monitor blood glucose levels frequently. Keep fast-acting glucose sweets accessible."
+  },
+  {
+    "salt_a": "ciprofloxacin",
+    "salt_b": "antacid",
+    "severity": "CRITICAL",
+    "effect": "Magnesium, aluminum, or calcium in antacids chelates ciprofloxacin, reducing antibiotic absorption by up to 90%.",
+    "recommendation": "Administer ciprofloxacin at least 2 hours before or 6 hours after antacids."
+  },
+  {
+    "salt_a": "levofloxacin",
+    "salt_b": "antacid",
+    "severity": "CRITICAL",
+    "effect": "Chelation with polyvalent cations leads to antibiotic therapeutic failure.",
+    "recommendation": "Take levofloxacin at least 2 hours before or 4 hours after taking antacids or sucralfate."
+  },
+  {
+    "salt_a": "atorvastatin",
+    "salt_b": "clarithromycin",
+    "severity": "CRITICAL",
+    "effect": "Clarithromycin inhibits CYP3A4 metabolism of Atorvastatin, drastically increasing plasma levels and precipitating rhabdomyolysis.",
+    "recommendation": "Temporarily suspend atorvastatin during the clarithromycin antimicrobial course."
+  },
+  {
+    "salt_a": "atorvastatin",
+    "salt_b": "erythromycin",
+    "severity": "CRITICAL",
+    "effect": "CYP3A4 inhibition elevates atorvastatin exposure, leading to acute muscle toxicity and kidney damage.",
+    "recommendation": "Avoid co-administration. Consult physician for dose adjustment or alternative antibiotic."
+  },
+  {
+    "salt_a": "telmisartan",
+    "salt_b": "potassium chloride",
+    "severity": "CRITICAL",
+    "effect": "Angiotensin II receptor blockers conserve potassium; adding potassium supplements induces hazardous hyperkalemia and cardiac arrhythmias.",
+    "recommendation": "Do not take potassium supplements with Telmisartan unless directed with regular serum electrolyte monitoring."
+  },
+  {
+    "salt_a": "ramipril",
+    "salt_b": "potassium chloride",
+    "severity": "CRITICAL",
+    "effect": "ACE inhibitors reduce aldosterone secretion, causing potassium retention. Adding potassium triggers severe hyperkalemia.",
+    "recommendation": "Avoid potassium-sparing agents and potassium salt substitutes without serum checks."
+  },
+  {
+    "salt_a": "amoxicillin",
+    "salt_b": "methotrexate",
+    "severity": "CRITICAL",
+    "effect": "Penicillins reduce renal tubular clearance of methotrexate, causing severe bone marrow suppression and methotrexate toxicity.",
+    "recommendation": "Avoid concurrent use; strictly monitor complete blood counts if combination is clinically mandated."
+  },
+  {
+    "salt_a": "clopidogrel",
+    "salt_b": "omeprazole",
+    "severity": "MODERATE",
+    "effect": "Omeprazole inhibits CYP2C19, reducing the bio-activation of Clopidogrel and compromising antiplatelet protection.",
+    "recommendation": "Use Pantoprazole instead of Omeprazole, as Pantoprazole has significantly weaker CYP2C19 inhibition."
+  },
+  {
+    "salt_a": "pantoprazole",
+    "salt_b": "iron",
+    "severity": "MILD",
+    "effect": "Decreased gastric acidity impairs absorption of oral non-heme iron salts.",
+    "recommendation": "Separate administration by at least 2 hours or take iron supplements with Vitamin C."
+  },
+  {
+    "salt_a": "azithromycin",
+    "salt_b": "ondansetron",
+    "severity": "MODERATE",
+    "effect": "Both medications prolong the cardiac QT interval, elevating the risk of Torsades de Pointes arrhythmia.",
+    "recommendation": "Use caution in patients with underlying cardiac conditions. Avoid in uncorrected electrolyte deficits."
+  },
+  {
+    "salt_a": "alprazolam",
+    "salt_b": "cetirizine",
+    "severity": "MODERATE",
+    "effect": "Additive central nervous system depression leading to intense drowsiness, psychomotor impairment, and dizziness.",
+    "recommendation": "Avoid driving or operating machinery. Stagger timing and minimize sedative exposure."
+  },
+  {
+    "salt_a": "tramadol",
+    "salt_b": "sertraline",
+    "severity": "CRITICAL",
+    "effect": "Combination elevates synaptic serotonin levels, presenting high risk for Serotonin Syndrome and seizures.",
+    "recommendation": "Avoid combination. Watch for agitation, hyperreflexia, tremors, and hyperthermia."
+  },
+  {
+    "salt_a": "paracetamol",
+    "salt_b": "paracetamol",
+    "severity": "CRITICAL",
+    "effect": "Accidental duplicate Paracetamol ingestion across multi-ingredient cold remedies risks acute hepatotoxicity.",
+    "recommendation": "Duplicate active ingredient detected! Limit total cumulative Paracetamol to 4000mg per 24 hours."
+  },
+  {
+    "salt_a": "mefenamic acid",
+    "salt_b": "aspirin",
+    "severity": "CRITICAL",
+    "effect": "Combining Mefenamic Acid (Meftal-Spas) with Aspirin sharply increases gastric erosion and ulcer hemorrhage.",
+    "recommendation": "Do not combine NSAIDs. Consult healthcare professional."
+  },
+  {
+    "salt_a": "paracetamol",
+    "salt_b": "warfarin",
+    "severity": "MODERATE",
+    "effect": "Prolonged high-dose Paracetamol (>2g/day for >3 days) may enhance the anticoagulant effect of Warfarin.",
+    "recommendation": "Short occasional doses are safe. For prolonged use, monitor INR."
+  },
+  {
+    "salt_a": "doxycycline",
+    "salt_b": "calcium carbonate",
+    "severity": "MODERATE",
+    "effect": "Calcium binds to doxycycline in the gut, forming unabsorbable chelates and blunting antibiotic efficacy.",
+    "recommendation": "Separate intake of dairy products or calcium supplements by at least 2 to 3 hours."
+  },
+  {
+    "salt_a": "losartan",
+    "salt_b": "spironolactone",
+    "severity": "CRITICAL",
+    "effect": "Dual inhibition of renin-angiotensin-aldosterone axis can cause severe hyperkalemia and acute renal insufficiency.",
+    "recommendation": "Avoid combination without frequent serum potassium and creatinine monitoring."
+  },
+  {
+    "salt_a": "amiodarone",
+    "salt_b": "levofloxacin",
+    "severity": "CRITICAL",
+    "effect": "Significant additive prolongation of the QTc interval, leading to fatal ventricular arrhythmias.",
+    "recommendation": "Contraindicated. Choose alternative non-quinolone antibiotic."
+  },
+  {
+    "salt_a": "digoxin",
+    "salt_b": "clarithromycin",
+    "severity": "CRITICAL",
+    "effect": "Clarithromycin inhibits P-glycoprotein, dramatically raising serum Digoxin levels to toxic concentrations.",
+    "recommendation": "Reduce digoxin dose by 50% and closely monitor digitalis toxicity symptoms (nausea, visual halos)."
+  },
+  {
+    "salt_a": "metronidazole",
+    "salt_b": "alcohol",
+    "severity": "CRITICAL",
+    "effect": "Disulfiram-like reaction causing severe nausea, vomiting, abdominal cramps, facial flushing, and tachycardia.",
+    "recommendation": "Strictly avoid alcohol during metronidazole therapy and for at least 48 hours after the last dose."
+  }
+]
