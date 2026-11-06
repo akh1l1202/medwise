@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
-import '../../../../core/utils/demo_data_seeder.dart';
 import '../../data/models/cabinet_item.dart';
-import '../../data/repositories/cabinet_repository.dart';
 import '../controllers/cabinet_controller.dart';
 import '../widgets/medicine_card.dart';
 import '../widgets/medicine_detail_sheet.dart';
@@ -74,21 +72,6 @@ class _CabinetScreenState extends ConsumerState<CabinetScreen> {
         onSelect: _showDetailSheet,
       ),
     );
-  }
-
-  Future<void> _seedDemoData() async {
-    final repo = ref.read(cabinetRepositoryProvider);
-    await DemoDataSeeder.seedDemoStash(repo);
-    await ref.read(cabinetNotifierProvider.notifier).refresh();
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Seeded 5 realistic Indian household medicines into your cabinet!'),
-          backgroundColor: AppColors.primary,
-        ),
-      );
-    }
   }
 
   @override
@@ -195,40 +178,7 @@ class _CabinetScreenState extends ConsumerState<CabinetScreen> {
             ),
             orElse: () => const SizedBox.shrink(),
           ),
-          // 1-Click Demo Data Button
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: _seedDemoData,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.auto_fix_high, size: 14, color: AppColors.textSecondary),
-                      SizedBox(width: 4),
-                      Text(
-                        'Demo',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: cabinetAsync.when(
@@ -262,9 +212,14 @@ class _CabinetScreenState extends ConsumerState<CabinetScreen> {
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton.icon(
-                      icon: const Icon(Icons.auto_fix_high),
-                      label: const Text('Preload Sample Demo Stash'),
-                      onPressed: _seedDemoData,
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Add Your First Medicine'),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const AddMedicineScreen()),
+                        );
+                      },
                     ),
                   ],
                 ),
