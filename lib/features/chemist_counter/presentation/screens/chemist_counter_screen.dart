@@ -22,7 +22,6 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<MedicineRecord> _suggestions = [];
   bool _isSearching = false;
-  int _prescribedQuantity = 10;
   final Set<String> _checkedOffItemIds = {};
 
   @override
@@ -56,12 +55,26 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
 
   void _addPrescribedMedicine(MedicineRecord record) {
     const uuid = Uuid();
+    final lowerForm = record.dosageForm.toLowerCase();
+    final isUnitForm = lowerForm.contains('syrup') ||
+        lowerForm.contains('drop') ||
+        lowerForm.contains('suspension') ||
+        lowerForm.contains('liquid') ||
+        lowerForm.contains('ointment') ||
+        lowerForm.contains('cream') ||
+        lowerForm.contains('gel') ||
+        lowerForm.contains('spray') ||
+        lowerForm.contains('inhaler');
+
+    // Default to 1 bottle/tube for syrups & liquids, 10 for tablets/capsules
+    final initialQuantity = isUnitForm ? 1 : 10;
+
     final cartItem = ChemistCartItem(
       id: uuid.v4(),
       brandName: record.brandName,
       activeSalt: record.activeSalt,
       prescribedStrength: record.strength,
-      quantityPrescribed: _prescribedQuantity,
+      quantityPrescribed: initialQuantity,
       dosageForm: record.dosageForm,
     );
 
@@ -70,7 +83,6 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
     setState(() {
       _suggestions = [];
       _searchController.clear();
-      _prescribedQuantity = 10;
     });
   }
 
@@ -186,45 +198,20 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Search prescribed (e.g. Dolo 650)...',
-                          prefixIcon: const Icon(Icons.search),
-                          suffixIcon: _isSearching
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                                )
-                              : null,
-                        ),
-                        onChanged: _onSearch,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Quantity dropdown selector
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: DropdownButton<int>(
-                        value: _prescribedQuantity,
-                        underline: const SizedBox.shrink(),
-                        items: [5, 10, 15, 20, 30].map((qty) {
-                          return DropdownMenuItem(value: qty, child: Text('$qty tabs'));
-                        }).toList(),
-                        onChanged: (val) => setState(() => _prescribedQuantity = val ?? 10),
-                      ),
-                    ),
-                  ],
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search prescribed (e.g. Dolo 650, Benadryl)...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _isSearching
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          )
+                        : null,
+                  ),
+                  onChanged: _onSearch,
                 ),
                 // Autocomplete Suggestions Dropdown
                 if (_suggestions.isNotEmpty) ...[
@@ -370,7 +357,70 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 8),
+
+                              // Form-Aware Quantity Stepper Row
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Prescribed needed:',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceVariant,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: AppColors.border),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        InkWell(
+                                          borderRadius: BorderRadius.circular(8),
+                                          onTap: eval.cartItem.quantityPrescribed > 1
+                                              ? () {
+                                                  final step = eval.cartItem.isLiquidOrUnitItem ? 1 : 5;
+                                                  final newQty = (eval.cartItem.quantityPrescribed - step).clamp(1, 999);
+                                                  ref.read(chemistCartProvider.notifier).updateQuantity(eval.cartItem.id, newQty);
+                                                }
+                                              : null,
+                                          child: const Padding(
+                                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            child: Icon(Icons.remove_rounded, size: 14),
+                                          ),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                                          child: Text(
+                                            '${eval.cartItem.quantityPrescribed} ${eval.cartItem.unitLabel}',
+                                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                                          ),
+                                        ),
+                                        InkWell(
+                                          borderRadius: BorderRadius.circular(8),
+                                          onTap: () {
+                                            final step = eval.cartItem.isLiquidOrUnitItem ? 1 : 5;
+                                            ref.read(chemistCartProvider.notifier).updateQuantity(
+                                              eval.cartItem.id,
+                                              eval.cartItem.quantityPrescribed + step,
+                                            );
+                                          },
+                                          child: const Padding(
+                                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            child: Icon(Icons.add_rounded, size: 14),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
 
                               // Active Salt Equivalence Callout Card
                               if (eval.hasCabinetEquivalence && !eval.strengthMismatch) ...[
@@ -400,7 +450,7 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
                                       ),
                                       const SizedBox(height: 6),
                                       Text(
-                                        'You already have ${eval.quantityAlreadyOwned.toStringAsFixed(0)} tabs of ${eval.matchingCabinetItem!.brandName} (${eval.matchingCabinetItem!.activeSalt} ${eval.matchingCabinetItem!.strength}) in your ${eval.storageLocation ?? 'cabinet'}.',
+                                        'You already have ${eval.formatOwnedQuantity()} of ${eval.matchingCabinetItem!.brandName} (${eval.matchingCabinetItem!.activeSalt} ${eval.matchingCabinetItem!.strength}) in your ${eval.storageLocation ?? 'cabinet'}.',
                                         style: const TextStyle(fontSize: 12, color: AppColors.textPrimary, height: 1.35),
                                       ),
                                       const SizedBox(height: 8),
@@ -414,7 +464,7 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
                                         child: Text(
                                           eval.canSkipPurchase
                                               ? '💡 Skip purchase entirely! Home stock covers full prescription.'
-                                              : '💡 Recommendation: Buy only ${eval.recommendedBuyQuantity} tablets.',
+                                              : '💡 Recommendation: Buy only ${eval.formatRecommendedBuy()}.',
                                           style: const TextStyle(
                                             fontSize: 12.5,
                                             fontWeight: FontWeight.w700,
@@ -460,7 +510,7 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
                                       const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
-                                          'No active salt stock in cabinet. Buy full ${eval.recommendedBuyQuantity} tabs.',
+                                          'No active salt stock in cabinet. Buy full ${eval.formatRecommendedBuy()}.',
                                           style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
                                         ),
                                       ),

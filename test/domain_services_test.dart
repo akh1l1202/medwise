@@ -76,6 +76,42 @@ void main() {
       expect(result.strengthMismatch, isFalse);
     });
 
+    test('Handles syrups and liquid unit items with bottle labels and unit quantities', () {
+      final syrupCart = const ChemistCartItem(
+        id: 'cart-syrup-1',
+        brandName: 'Ascoril D+ Syrup',
+        activeSalt: 'Dextromethorphan + Chlorpheniramine',
+        prescribedStrength: '10mg/5ml',
+        quantityPrescribed: 1,
+        dosageForm: 'Syrup',
+      );
+
+      expect(syrupCart.isLiquidOrUnitItem, isTrue);
+      expect(syrupCart.unitLabel, equals('bottle'));
+
+      final homeSyrup = CabinetItem(
+        id: 'cab-syrup-1',
+        brandName: 'Benadryl DR Syrup',
+        activeSalt: 'Dextromethorphan + Chlorpheniramine',
+        strength: '10mg/5ml',
+        form: 'Syrup',
+        quantityRemaining: 1.0,
+        printedExpiry: '12/2027',
+        profileId: 'profile-1',
+        createdAt: DateTime.now(),
+      );
+
+      final eval = service.evaluateItem(
+        cartItem: syrupCart,
+        cabinetItems: [homeSyrup],
+      );
+
+      expect(eval.hasCabinetEquivalence, isTrue);
+      expect(eval.canSkipPurchase, isTrue);
+      expect(eval.formatOwnedQuantity(), equals('1 bottle'));
+      expect(eval.formatRecommendedBuy(), equals('0 bottles'));
+    });
+
     test('Strength Guard flags concentration mismatch (500mg vs 650mg)', () {
       final cartItem = const ChemistCartItem(
         id: 'cart-2',
