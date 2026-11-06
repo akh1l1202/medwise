@@ -9,15 +9,16 @@ import '../../domain/services/image_cropper_service.dart';
 enum _ActiveCorner {
   topLeft,
   topRight,
-  bottomLeft,
   bottomRight,
+  bottomLeft,
   none,
 }
 
-/// A focused prescription image cropping screen that lets the user
-/// isolate the medicine names and dosage table on a doctor's slip.
-/// Eliminates hospital logos, headers, stamps, and footer disclaimers,
-/// maximizing OCR reading confidence and precision.
+/// A flexible perspective prescription cropping screen that allows users
+/// to freely position 4 independent corners to form any quadrilateral
+/// (trapezoid, tilted rectangle, or arbitrary non-parallel polygon).
+/// Automatically rectifies perspective distortion so that ML Kit OCR reads
+/// horizontal, crystal-clear text lines with maximum confidence.
 class PrescriptionCropScreen extends ConsumerStatefulWidget {
   final String imagePath;
 
@@ -38,17 +39,16 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
 
   int _rotationDegrees = 0; // 0, 90, 180, 270
 
-  // Coordinates on screen
-  Rect? _cropRect;
+  // 4 corners of the free quadrilateral on screen
+  QuadrilateralPoints? _quad;
   Rect? _imageDisplayRect;
   double _scale = 1.0;
   Size _lastViewportSize = Size.zero;
 
   _ActiveCorner _activeCorner = _ActiveCorner.none;
-  bool _isPanningBox = false;
+  bool _isPanningPolygon = false;
 
-  static const double _minCropSize = 70.0;
-  static const double _cornerHitRadius = 38.0;
+  static const double _cornerHitRadius = 44.0;
 
   @override
   void initState() {
@@ -90,14 +90,14 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
   void _rotateClockwise() {
     setState(() {
       _rotationDegrees = (_rotationDegrees + 90) % 360;
-      // Invalidate crop rect so it re-centers on the newly rotated orientation
-      _cropRect = null;
+      // Invalidate quad so it re-centers on the newly rotated orientation
+      _quad = null;
     });
   }
 
   void _resetCrop() {
     setState(() {
-      _cropRect = null;
+      _quad = null;
     });
   }
 
@@ -124,106 +124,136 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
     _scale = scale;
     _imageDisplayRect = Rect.fromLTWH(offsetX, offsetY, renderedW, renderedH);
 
-    // If crop rect is not initialized or viewport changed significantly
-    if (_cropRect == null || viewportSize != _lastViewportSize) {
+    // If quad is not initialized or viewport changed significantly
+    if (_quad == null || viewportSize != _lastViewportSize) {
       _lastViewportSize = viewportSize;
 
-      // Default crop: middle 85% width, middle 20% to 85% height (typical medicine Rx zone)
-      final cropW = renderedW * 0.88;
-      final cropH = renderedH * 0.65;
-      final cropX = offsetX + (renderedW - cropW) / 2.0;
-      final cropY = offsetY + (renderedH * 0.18);
+      // Default free quadrilateral: middle 84% width, 18% to 82% height
+      final leftX = offsetX + (renderedW * 0.08);
+      final rightX = offsetX + (renderedW * 0.92);
+      final topY = offsetY + (renderedH * 0.18);
+      final bottomY = offsetY + (renderedH * 0.82);
 
-      _cropRect = Rect.fromLTWH(
-        cropX,
-        cropY.clamp(offsetY, offsetY + renderedH - _minCropSize),
-        cropW.clamp(_minCropSize, renderedW),
-        cropH.clamp(_minCropSize, renderedH),
+      _quad = QuadrilateralPoints(
+        topLeft: Offset(leftX, topY),
+        topRight: Offset(rightX, topY),
+        bottomRight: Offset(rightX, bottomY),
+        bottomLeft: Offset(leftX, bottomY),
       );
     }
   }
 
+  bool _isPointInQuad(Offset pos, QuadrilateralPoints quad) {
+    final poly = Path()
+      ..addPolygon([quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft], true);
+    return poly.contains(pos);
+  }
+
   void _onPanStart(DragStartDetails details) {
-    if (_cropRect == null || _imageDisplayRect == null) return;
+    if (_quad == null || _imageDisplayRect == null) return;
 
     final pos = details.localPosition;
 
-    // Check corner handles
-    if ((pos - _cropRect!.topLeft).distance <= _cornerHitRadius) {
+    // Check 4 corner grab handles first
+    if ((pos - _quad!.topLeft).distance <= _cornerHitRadius) {
       _activeCorner = _ActiveCorner.topLeft;
-      _isPanningBox = false;
-    } else if ((pos - _cropRect!.topRight).distance <= _cornerHitRadius) {
+      _isPanningPolygon = false;
+    } else if ((pos - _quad!.topRight).distance <= _cornerHitRadius) {
       _activeCorner = _ActiveCorner.topRight;
-      _isPanningBox = false;
-    } else if ((pos - _cropRect!.bottomLeft).distance <= _cornerHitRadius) {
-      _activeCorner = _ActiveCorner.bottomLeft;
-      _isPanningBox = false;
-    } else if ((pos - _cropRect!.bottomRight).distance <= _cornerHitRadius) {
+      _isPanningPolygon = false;
+    } else if ((pos - _quad!.bottomRight).distance <= _cornerHitRadius) {
       _activeCorner = _ActiveCorner.bottomRight;
-      _isPanningBox = false;
-    } else if (_cropRect!.contains(pos)) {
+      _isPanningPolygon = false;
+    } else if ((pos - _quad!.bottomLeft).distance <= _cornerHitRadius) {
+      _activeCorner = _ActiveCorner.bottomLeft;
+      _isPanningPolygon = false;
+    } else if (_isPointInQuad(pos, _quad!)) {
       _activeCorner = _ActiveCorner.none;
-      _isPanningBox = true;
+      _isPanningPolygon = true;
     } else {
       _activeCorner = _ActiveCorner.none;
-      _isPanningBox = false;
+      _isPanningPolygon = false;
     }
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
-    if (_cropRect == null || _imageDisplayRect == null) return;
+    if (_quad == null || _imageDisplayRect == null) return;
     final img = _imageDisplayRect!;
+    final pos = details.localPosition;
     final delta = details.delta;
 
     setState(() {
       if (_activeCorner == _ActiveCorner.topLeft) {
-        final newLeft = (details.localPosition.dx).clamp(img.left, _cropRect!.right - _minCropSize);
-        final newTop = (details.localPosition.dy).clamp(img.top, _cropRect!.bottom - _minCropSize);
-        _cropRect = Rect.fromLTRB(newLeft, newTop, _cropRect!.right, _cropRect!.bottom);
+        final clamped = Offset(
+          pos.dx.clamp(img.left, img.right),
+          pos.dy.clamp(img.top, img.bottom),
+        );
+        _quad = _quad!.copyWith(topLeft: clamped);
       } else if (_activeCorner == _ActiveCorner.topRight) {
-        final newRight = (details.localPosition.dx).clamp(_cropRect!.left + _minCropSize, img.right);
-        final newTop = (details.localPosition.dy).clamp(img.top, _cropRect!.bottom - _minCropSize);
-        _cropRect = Rect.fromLTRB(_cropRect!.left, newTop, newRight, _cropRect!.bottom);
-      } else if (_activeCorner == _ActiveCorner.bottomLeft) {
-        final newLeft = (details.localPosition.dx).clamp(img.left, _cropRect!.right - _minCropSize);
-        final newBottom = (details.localPosition.dy).clamp(_cropRect!.top + _minCropSize, img.bottom);
-        _cropRect = Rect.fromLTRB(newLeft, _cropRect!.top, _cropRect!.right, newBottom);
+        final clamped = Offset(
+          pos.dx.clamp(img.left, img.right),
+          pos.dy.clamp(img.top, img.bottom),
+        );
+        _quad = _quad!.copyWith(topRight: clamped);
       } else if (_activeCorner == _ActiveCorner.bottomRight) {
-        final newRight = (details.localPosition.dx).clamp(_cropRect!.left + _minCropSize, img.right);
-        final newBottom = (details.localPosition.dy).clamp(_cropRect!.top + _minCropSize, img.bottom);
-        _cropRect = Rect.fromLTRB(_cropRect!.left, _cropRect!.top, newRight, newBottom);
-      } else if (_isPanningBox) {
-        final newLeft = (_cropRect!.left + delta.dx).clamp(img.left, img.right - _cropRect!.width);
-        final newTop = (_cropRect!.top + delta.dy).clamp(img.top, img.bottom - _cropRect!.height);
-        _cropRect = Rect.fromLTWH(newLeft, newTop, _cropRect!.width, _cropRect!.height);
+        final clamped = Offset(
+          pos.dx.clamp(img.left, img.right),
+          pos.dy.clamp(img.top, img.bottom),
+        );
+        _quad = _quad!.copyWith(bottomRight: clamped);
+      } else if (_activeCorner == _ActiveCorner.bottomLeft) {
+        final clamped = Offset(
+          pos.dx.clamp(img.left, img.right),
+          pos.dy.clamp(img.top, img.bottom),
+        );
+        _quad = _quad!.copyWith(bottomLeft: clamped);
+      } else if (_isPanningPolygon) {
+        // Shift entire quadrilateral simultaneously, keeping all 4 corners inside image bounds
+        final minX = math.min(math.min(_quad!.topLeft.dx, _quad!.topRight.dx), math.min(_quad!.bottomLeft.dx, _quad!.bottomRight.dx));
+        final maxX = math.max(math.max(_quad!.topLeft.dx, _quad!.topRight.dx), math.max(_quad!.bottomLeft.dx, _quad!.bottomRight.dx));
+        final minY = math.min(math.min(_quad!.topLeft.dy, _quad!.topRight.dy), math.min(_quad!.bottomLeft.dy, _quad!.bottomRight.dy));
+        final maxY = math.max(math.max(_quad!.topLeft.dy, _quad!.topRight.dy), math.max(_quad!.bottomLeft.dy, _quad!.bottomRight.dy));
+
+        final safeDx = delta.dx.clamp(img.left - minX, img.right - maxX);
+        final safeDy = delta.dy.clamp(img.top - minY, img.bottom - maxY);
+        final safeShift = Offset(safeDx, safeDy);
+
+        _quad = QuadrilateralPoints(
+          topLeft: _quad!.topLeft + safeShift,
+          topRight: _quad!.topRight + safeShift,
+          bottomRight: _quad!.bottomRight + safeShift,
+          bottomLeft: _quad!.bottomLeft + safeShift,
+        );
       }
     });
   }
 
   void _onPanEnd(DragEndDetails details) {
-    _activeCorner = _ActiveCorner.none;
-    _isPanningBox = false;
+    setState(() {
+      _activeCorner = _ActiveCorner.none;
+      _isPanningPolygon = false;
+    });
   }
 
   Future<void> _scanCroppedArea() async {
-    if (_loadedImage == null || _cropRect == null || _imageDisplayRect == null) return;
+    if (_loadedImage == null || _quad == null || _imageDisplayRect == null) return;
 
     setState(() => _isProcessing = true);
 
     try {
-      // Map screen crop rect to rotated image pixels
+      // Map screen quadrilateral points to image pixels
       final img = _imageDisplayRect!;
-      final pixelCropX = (_cropRect!.left - img.left) / _scale;
-      final pixelCropY = (_cropRect!.top - img.top) / _scale;
-      final pixelCropW = _cropRect!.width / _scale;
-      final pixelCropH = _cropRect!.height / _scale;
-
-      final pixelRect = Rect.fromLTWH(pixelCropX, pixelCropY, pixelCropW, pixelCropH);
+      final quadImg = QuadrilateralPoints(
+        topLeft: Offset((_quad!.topLeft.dx - img.left) / _scale, (_quad!.topLeft.dy - img.top) / _scale),
+        topRight: Offset((_quad!.topRight.dx - img.left) / _scale, (_quad!.topRight.dy - img.top) / _scale),
+        bottomRight: Offset((_quad!.bottomRight.dx - img.left) / _scale, (_quad!.bottomRight.dy - img.top) / _scale),
+        bottomLeft: Offset((_quad!.bottomLeft.dx - img.left) / _scale, (_quad!.bottomLeft.dy - img.top) / _scale),
+      );
 
       final cropper = ref.read(imageCropperServiceProvider);
-      final croppedPath = await cropper.cropImage(
+      final croppedPath = await cropper.cropQuadrilateral(
         imagePath: widget.imagePath,
-        cropRect: pixelRect,
+        quad: quadImg,
         rotationDegrees: _rotationDegrees,
       );
 
@@ -234,7 +264,7 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
       if (mounted) {
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to crop image: $e')),
+          SnackBar(content: Text('Failed to crop perspective area: $e')),
         );
       }
     }
@@ -281,11 +311,11 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Focus Prescribed Medicines',
+              'Free Perspective Crop',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
             ),
             Text(
-              'Crop out logos & headers for >95% OCR accuracy',
+              'Drag any corner to match prescription angle',
               style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
             ),
           ],
@@ -298,7 +328,7 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
           ),
           IconButton(
             icon: const Icon(Icons.restart_alt_rounded, size: 24, color: AppColors.textSecondary),
-            tooltip: 'Reset Crop Window',
+            tooltip: 'Reset Corners',
             onPressed: _isLoading || _isProcessing ? null : _resetCrop,
           ),
         ],
@@ -317,11 +347,11 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.crop_free_rounded, color: AppColors.primary, size: 20),
+                  Icon(Icons.crop_rotate_rounded, color: AppColors.primary, size: 20),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Drag the corner handles around the medicine names and dosages only. Exclude hospital headers & footers.',
+                      'Drag all 4 corners freely to match the angle of the slip. Perspective is automatically straightened for >95% OCR accuracy.',
                       style: TextStyle(
                         color: AppColors.primaryDark,
                         fontSize: 12,
@@ -334,10 +364,10 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
               ),
             ),
 
-            // Main Interactive Crop & Preview Area
+            // Main Interactive Free Quadrilateral Crop & Preview Area
             Expanded(
               child: Container(
-                color: const Color(0xFFE2E8F0), // Neutral slate workbench background for image
+                color: const Color(0xFFE2E8F0), // Neutral slate workbench
                 child: _isLoading
                     ? const Center(
                         child: Column(
@@ -377,22 +407,23 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
                                         ),
                                       ),
 
-                                    // 2. Custom Painter Scrim & Crop Box
-                                    if (_cropRect != null && _imageDisplayRect != null)
+                                    // 2. Custom Painter Scrim & Free Quadrilateral
+                                    if (_quad != null && _imageDisplayRect != null)
                                       Positioned.fill(
                                         child: CustomPaint(
-                                          painter: _CropOverlayPainter(
-                                            cropRect: _cropRect!,
+                                          painter: _FreeQuadrilateralOverlayPainter(
+                                            quad: _quad!,
                                             imageRect: _imageDisplayRect!,
+                                            activeCorner: _activeCorner,
                                           ),
                                         ),
                                       ),
 
-                                    // 3. Floating "Medicine List Area" Label
-                                    if (_cropRect != null)
+                                    // 3. Floating "Perspective Crop" Badge above topmost corner
+                                    if (_quad != null)
                                       Positioned(
-                                        left: _cropRect!.left + 8,
-                                        top: math.max(0.0, _cropRect!.top - 28),
+                                        left: math.min(_quad!.topLeft.dx, _quad!.topRight.dx) + 8,
+                                        top: math.max(0.0, math.min(_quad!.topLeft.dy, _quad!.topRight.dy) - 30),
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                           decoration: BoxDecoration(
@@ -409,13 +440,13 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
                                           child: const Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Icon(Icons.medication_outlined, size: 12, color: Colors.white),
+                                              Icon(Icons.view_in_ar_rounded, size: 12, color: Colors.white),
                                               SizedBox(width: 4),
                                               Text(
-                                                'Prescribed Medicines Only',
+                                                'Perspective Straightening Active',
                                                 style: TextStyle(
                                                   color: Colors.white,
-                                                  fontSize: 11,
+                                                  fontSize: 10.5,
                                                   fontWeight: FontWeight.bold,
                                                   letterSpacing: 0.2,
                                                 ),
@@ -436,7 +467,7 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
                                               CircularProgressIndicator(color: AppColors.primary),
                                               SizedBox(height: 16),
                                               Text(
-                                                'Cropping & Preparing High-Precision OCR...',
+                                                'Straightening Perspective & Extracting Medicines...',
                                                 style: TextStyle(
                                                   color: AppColors.textPrimary,
                                                   fontWeight: FontWeight.bold,
@@ -445,7 +476,7 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
                                               ),
                                               SizedBox(height: 6),
                                               Text(
-                                                'Excluding headers for maximum reading accuracy',
+                                                'Warping quadrilateral mesh to horizontal text',
                                                 style: TextStyle(
                                                   color: AppColors.textSecondary,
                                                   fontSize: 12,
@@ -505,7 +536,7 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         elevation: 0,
                       ),
-                      icon: const Icon(Icons.crop_free_rounded, size: 20),
+                      icon: const Icon(Icons.crop_rotate_rounded, size: 20),
                       label: const Text(
                         'Scan Cropped Area',
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
@@ -523,23 +554,25 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
   }
 }
 
-/// Custom painter rendering the dark stencil cut-out around the crop box,
-/// grid guidelines, border outline, and corner bracket handles.
-class _CropOverlayPainter extends CustomPainter {
-  final Rect cropRect;
+/// Custom painter rendering the frosted translucent scrim around an arbitrary quadrilateral,
+/// perspective 3x3 grid guidelines, perimeter boundary, and tactile grab handles.
+class _FreeQuadrilateralOverlayPainter extends CustomPainter {
+  final QuadrilateralPoints quad;
   final Rect imageRect;
+  final _ActiveCorner activeCorner;
 
-  _CropOverlayPainter({
-    required this.cropRect,
+  _FreeQuadrilateralOverlayPainter({
+    required this.quad,
     required this.imageRect,
+    required this.activeCorner,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Draw outer dimmed scrim (everywhere outside cropRect)
+    // 1. Draw outer frosted slate scrim outside the arbitrary quadrilateral
     final path = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
-      ..addRRect(RRect.fromRectAndRadius(cropRect, const Radius.circular(8)))
+      ..addPolygon([quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft], true)
       ..fillType = PathFillType.evenOdd;
 
     final scrimPaint = Paint()
@@ -547,125 +580,87 @@ class _CropOverlayPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     canvas.drawPath(path, scrimPaint);
 
-    // 2. Draw 3x3 Rule-of-Thirds Grid Guidelines inside cropRect
+    // 2. Draw 3x3 Perspective Grid Guidelines (bilinear subdivision across edges)
     final gridPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.65)
+      ..color = Colors.white.withValues(alpha: 0.60)
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
 
-    final thirdW = cropRect.width / 3.0;
-    final thirdH = cropRect.height / 3.0;
+    Offset interp(double u, double v) {
+      final x = (1 - u) * (1 - v) * quad.topLeft.dx +
+          u * (1 - v) * quad.topRight.dx +
+          u * v * quad.bottomRight.dx +
+          (1 - u) * v * quad.bottomLeft.dx;
+      final y = (1 - u) * (1 - v) * quad.topLeft.dy +
+          u * (1 - v) * quad.topRight.dy +
+          u * v * quad.bottomRight.dy +
+          (1 - u) * v * quad.bottomLeft.dy;
+      return Offset(x, y);
+    }
 
-    // Vertical grid lines
-    canvas.drawLine(
-      Offset(cropRect.left + thirdW, cropRect.top),
-      Offset(cropRect.left + thirdW, cropRect.bottom),
-      gridPaint,
-    );
-    canvas.drawLine(
-      Offset(cropRect.left + thirdW * 2, cropRect.top),
-      Offset(cropRect.left + thirdW * 2, cropRect.bottom),
-      gridPaint,
-    );
+    // Vertical perspective lines at 1/3 and 2/3
+    canvas.drawLine(interp(1 / 3, 0), interp(1 / 3, 1), gridPaint);
+    canvas.drawLine(interp(2 / 3, 0), interp(2 / 3, 1), gridPaint);
 
-    // Horizontal grid lines
-    canvas.drawLine(
-      Offset(cropRect.left, cropRect.top + thirdH),
-      Offset(cropRect.right, cropRect.top + thirdH),
-      gridPaint,
-    );
-    canvas.drawLine(
-      Offset(cropRect.left, cropRect.top + thirdH * 2),
-      Offset(cropRect.right, cropRect.top + thirdH * 2),
-      gridPaint,
-    );
+    // Horizontal perspective lines at 1/3 and 2/3
+    canvas.drawLine(interp(0, 1 / 3), interp(1, 1 / 3), gridPaint);
+    canvas.drawLine(interp(0, 2 / 3), interp(1, 2 / 3), gridPaint);
 
-    // 3. Draw Emerald Teal Crop Border
+    // 3. Draw Emerald Teal Quadrilateral Perimeter
     final borderPaint = Paint()
       ..color = AppColors.primary
       ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
-    canvas.drawRRect(RRect.fromRectAndRadius(cropRect, const Radius.circular(8)), borderPaint);
-
-    // 4. Draw Professional Corner Brackets & Handles
-    final cornerBracketPaint = Paint()
-      ..color = AppColors.primary
-      ..strokeWidth = 4.0
-      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
 
-    const armLength = 22.0;
+    final polyPath = Path()
+      ..addPolygon([quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft], true);
+    canvas.drawPath(polyPath, borderPaint);
 
-    // Top-Left Corner Bracket
-    canvas.drawLine(
-      Offset(cropRect.left, cropRect.top + armLength),
-      Offset(cropRect.left, cropRect.top),
-      cornerBracketPaint,
-    );
-    canvas.drawLine(
-      Offset(cropRect.left, cropRect.top),
-      Offset(cropRect.left + armLength, cropRect.top),
-      cornerBracketPaint,
-    );
+    // 4. Draw 4 Corner Grab Handles
+    void drawCornerHandle(Offset pos, bool isActive) {
+      final outerRadius = isActive ? 18.0 : 14.0;
+      final innerRadius = isActive ? 11.0 : 8.5;
 
-    // Top-Right Corner Bracket
-    canvas.drawLine(
-      Offset(cropRect.right - armLength, cropRect.top),
-      Offset(cropRect.right, cropRect.top),
-      cornerBracketPaint,
-    );
-    canvas.drawLine(
-      Offset(cropRect.right, cropRect.top),
-      Offset(cropRect.right, cropRect.top + armLength),
-      cornerBracketPaint,
-    );
+      // Drop shadow for tactile floating appearance
+      canvas.drawCircle(
+        pos + const Offset(0, 2),
+        outerRadius,
+        Paint()..color = const Color(0x33000000),
+      );
 
-    // Bottom-Left Corner Bracket
-    canvas.drawLine(
-      Offset(cropRect.left, cropRect.bottom - armLength),
-      Offset(cropRect.left, cropRect.bottom),
-      cornerBracketPaint,
-    );
-    canvas.drawLine(
-      Offset(cropRect.left, cropRect.bottom),
-      Offset(cropRect.left + armLength, cropRect.bottom),
-      cornerBracketPaint,
-    );
+      // Emerald Teal outer handle ring
+      canvas.drawCircle(
+        pos,
+        outerRadius,
+        Paint()..color = isActive ? AppColors.primaryLight : AppColors.primary,
+      );
 
-    // Bottom-Right Corner Bracket
-    canvas.drawLine(
-      Offset(cropRect.right - armLength, cropRect.bottom),
-      Offset(cropRect.right, cropRect.bottom),
-      cornerBracketPaint,
-    );
-    canvas.drawLine(
-      Offset(cropRect.right, cropRect.bottom),
-      Offset(cropRect.right, cropRect.bottom - armLength),
-      cornerBracketPaint,
-    );
+      // Crisp White inner grab pad
+      canvas.drawCircle(
+        pos,
+        innerRadius,
+        Paint()..color = Colors.white,
+      );
 
-    // Center circular touch grab points on corners
-    final grabDotPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    final grabBorderPaint = Paint()
-      ..color = AppColors.primary
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-
-    void drawHandleDot(Offset center) {
-      canvas.drawCircle(center, 7.0, grabDotPaint);
-      canvas.drawCircle(center, 7.0, grabBorderPaint);
+      // Center precision bullseye
+      canvas.drawCircle(
+        pos,
+        3.5,
+        Paint()..color = AppColors.primary,
+      );
     }
 
-    drawHandleDot(cropRect.topLeft);
-    drawHandleDot(cropRect.topRight);
-    drawHandleDot(cropRect.bottomLeft);
-    drawHandleDot(cropRect.bottomRight);
+    drawCornerHandle(quad.topLeft, activeCorner == _ActiveCorner.topLeft);
+    drawCornerHandle(quad.topRight, activeCorner == _ActiveCorner.topRight);
+    drawCornerHandle(quad.bottomRight, activeCorner == _ActiveCorner.bottomRight);
+    drawCornerHandle(quad.bottomLeft, activeCorner == _ActiveCorner.bottomLeft);
   }
 
   @override
-  bool shouldRepaint(covariant _CropOverlayPainter oldDelegate) {
-    return oldDelegate.cropRect != cropRect || oldDelegate.imageRect != imageRect;
+  bool shouldRepaint(covariant _FreeQuadrilateralOverlayPainter oldDelegate) {
+    return oldDelegate.quad != quad ||
+        oldDelegate.imageRect != imageRect ||
+        oldDelegate.activeCorner != activeCorner;
   }
 }

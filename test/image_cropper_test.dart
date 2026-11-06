@@ -96,6 +96,32 @@ void main() {
       expect(frame.image.height, lessThanOrEqualTo(400));
     });
 
+    test('Crops free perspective quadrilateral with non-parallel and unequal sides', () async {
+      // Arbitrary general quadrilateral with non-parallel, unequal opposite sides
+      const quad = QuadrilateralPoints(
+        topLeft: Offset(20, 50),
+        topRight: Offset(180, 70), // tilted top edge
+        bottomRight: Offset(190, 350), // non-parallel right edge
+        bottomLeft: Offset(30, 320), // non-parallel bottom and left edges
+      );
+
+      final croppedPath = await service.cropQuadrilateral(
+        imagePath: testImagePath,
+        quad: quad,
+        rotationDegrees: 0,
+      );
+
+      final croppedFile = File(croppedPath);
+      expect(croppedFile.existsSync(), isTrue);
+
+      final bytes = await croppedFile.readAsBytes();
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+
+      expect(frame.image.width, greaterThan(100));
+      expect(frame.image.height, greaterThan(200));
+    });
+
     test('Throws FileNotFoundException when image does not exist', () async {
       expect(
         () => service.cropImage(
