@@ -12,7 +12,7 @@
 |---|---|---|---|
 | **1** | Remove "Estimated Pharmacy Savings" ticker and related UI | 🟢 **Completed** | UI Simplification / Feature Removal |
 | **2** | Overall UI visual overhaul & polish (elevate from generic to premium healthcare aesthetic) | 🟢 **Completed** | UI / Design System |
-| **3** | Fix pixel overflow on 2:00 AM Quick Finder dialog | ⚪ Pending User Gate | Bug / Responsive UI |
+| **3** | Fix pixel overflow on 2:00 AM Quick Finder dialog | 🟢 **Completed** | Bug / Responsive UI |
 | **4** | Remove "Demo Data" button and static seed stash | ⚪ Pending User Gate | Cleanup / Redundant Code |
 | **5** | Remove assumed 10-tab quantity selector from Chemist Counter buy page (handle syrups, drops, liquids) | ⚪ Pending User Gate | UX / Domain Logic |
 | **6** | Fix bottom pixel overflow when tapping search bar under "Enter Prescribed Medicine" | ⚪ Pending User Gate | Bug / Keyboard Avoidance |
@@ -81,6 +81,32 @@
   - `flutter analyze`: **0 warnings / 0 errors**.
   - `flutter test`: **All 40 unit and widget tests pass**.
   - **Deployed to device:** Compiled debug APK and streamed install to connected device (`CPH2613`). Verified brand header, navigation bar, micro-dashboard, and card elevations. Fully resolved.
+
+---
+
+### Issue 3: Fix Pixel Overflow on 2:00 AM Quick Finder Dialog
+* **Status:** 🟢 **Completed & Deployed**
+* **Root Cause:**
+  1. **Keyboard Inset Overflow (Bottom RenderFlex):** The dialog used `TextField(autofocus: true)` inside an unconstrained `Dialog` containing a `Column(mainAxisSize: MainAxisSize.min)` with `Flexible(child: ListView.builder(shrinkWrap: true))`. When the soft keyboard popped up automatically upon dialog open, the keyboard took up $300-350\text{dp}$ of vertical space, squeezing the dialog below its required minimum content height and triggering a RenderFlex bottom overflow.
+  2. **Horizontal Header Overflow (Right RenderFlex):** The dialog header had a `Row` containing an icon container and a raw `Column` with `"2:00 AM Quick Finder"` and `"Find medicines by immediate symptom"`. Because the `Column` was not wrapped in `Expanded`, devices with smaller screen widths or enlarged accessibility font scales overflowed on the right edge.
+  3. **Lack of Dismiss Control:** The dialog had no explicit close button, forcing users to tap outside or hit system back.
+* **Changes Made:**
+  1. In [`EmergencySearchDialog`](../lib/features/cabinet/presentation/widgets/emergency_search_dialog.dart):
+     - Added `insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24)`.
+     - Wrapped dialog content in `ConstrainedBox` bounding maximum height to $75\%$ of screen height (`MediaQuery.of(context).size.height * 0.75`) and maximum width to $480\text{dp}$.
+     - Wrapped header title `Column` in `Expanded` with `TextOverflow.ellipsis` to prevent any horizontal line break or right-side RenderFlex overflow.
+     - Added an explicit `IconButton` close button (`Icons.close_rounded`) in the header for fast one-tap dismissal.
+     - Changed `autofocus: false` on `TextField` so the keyboard doesn't aggressively jump on open, allowing the user to immediately see and tap the 6 quick symptom tags ('Acidity', 'Fever', 'Headache', etc.).
+     - Converted the results list to `Expanded(child: ListView.separated(...))` so it smoothly resizes and scrolls within the remaining dialog bounds when the keyboard is summoned.
+     - Added an empty state vector graphic container when no symptoms match cabinet stock.
+  2. Added a comprehensive widget test suite in [`test/emergency_search_dialog_test.dart`](../test/emergency_search_dialog_test.dart) testing compact screen sizes ($360\times640$), quick symptom chip filtering, selection callbacks, and dialog dismissal.
+* **Redundant Code Removed:**
+  - Removed unstable `Flexible` + `shrinkWrap: true` nested inside `Column(mainAxisSize: MainAxisSize.min)`.
+  - Removed outdated unstyled action chip shapes.
+* **Resolution & Testing Status:**
+  - `flutter analyze`: **0 warnings / 0 errors**.
+  - `flutter test`: **All 42 unit and widget tests pass**.
+  - **Deployed to device:** Compiled debug APK and streamed installation to connected phone (`CPH2613`). Verified dialog opens smoothly on mobile without keyboard clipping or pixel overflow. Fully resolved.
 
 ---
 
