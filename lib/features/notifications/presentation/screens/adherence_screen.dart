@@ -141,12 +141,40 @@ class _AdherenceScreenState extends ConsumerState<AdherenceScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dose Adherence & Schedules'),
+        title: const Text('Dose Adherence & Reminders'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add_alarm),
-            tooltip: 'Add Schedule',
-            onPressed: () => _showAddScheduleDialog(cabinetItems),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => _showAddScheduleDialog(cabinetItems),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySurface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.primarySurfaceBorder),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.alarm_add_rounded, size: 16, color: AppColors.primary),
+                      SizedBox(width: 4),
+                      Text(
+                        'Add Dose',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primaryDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -162,28 +190,33 @@ class _AdherenceScreenState extends ConsumerState<AdherenceScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      width: 100,
-                      height: 100,
+                      width: 90,
+                      height: 90,
                       decoration: const BoxDecoration(
                         color: AppColors.primarySurface,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.alarm, size: 48, color: AppColors.primary),
+                      child: const Icon(Icons.alarm, size: 44, color: AppColors.primary),
                     ),
                     const SizedBox(height: 20),
                     const Text(
                       'No Active Dose Schedules',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     const Text(
                       'Schedule intake reminders to track daily compliance and automatically decrement cabinet stock when marking doses taken.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton.icon(
-                      icon: const Icon(Icons.add_alarm),
+                      icon: const Icon(Icons.alarm_add_rounded),
                       label: const Text('Add Dose Schedule'),
                       onPressed: () => _showAddScheduleDialog(cabinetItems),
                     ),
@@ -219,8 +252,9 @@ class _AdherenceScreenState extends ConsumerState<AdherenceScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: AppColors.primarySurface,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: AppColors.primaryLight.withValues(alpha: 0.4), width: 1.5),
+                      boxShadow: AppColors.subtleShadow,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,19 +265,19 @@ class _AdherenceScreenState extends ConsumerState<AdherenceScreen> {
                             const SizedBox(width: 8),
                             Text(
                               'ANTIBIOTIC REGIMEN: ${sched.antibioticProgressLabel.toUpperCase()}',
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDark, fontSize: 12),
+                              style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.primaryDark, fontSize: 12),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Text(
                           linkedItem.brandName,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                         ),
                         const SizedBox(height: 4),
                         const Text(
                           '⚠️ Do not stop early even if feeling better! Finish all prescribed days to prevent antibiotic resistance.',
-                          style: TextStyle(fontSize: 12, color: AppColors.primaryDark),
+                          style: TextStyle(fontSize: 12, color: AppColors.primaryDark, height: 1.35),
                         ),
                       ],
                     ),
@@ -251,11 +285,14 @@ class _AdherenceScreenState extends ConsumerState<AdherenceScreen> {
                 }),
               ],
 
-              const Text(
-                'Today\'s Scheduled Doses',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: Text(
+                  'Today\'s Scheduled Doses',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.2),
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
               ...schedules.map((schedule) {
                 final item = cabinetItems.firstWhere(
@@ -273,26 +310,32 @@ class _AdherenceScreenState extends ConsumerState<AdherenceScreen> {
                   ),
                 );
 
-                return Card(
+                return Container(
                   margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: AppColors.cardShadow,
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           decoration: BoxDecoration(
                             color: AppColors.surfaceVariant,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.alarm, color: AppColors.primary, size: 22),
-                              const SizedBox(height: 4),
+                              const Icon(Icons.alarm_rounded, color: AppColors.primary, size: 20),
+                              const SizedBox(height: 3),
                               Text(
                                 schedule.timeOfDay,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
                               ),
                             ],
                           ),
@@ -304,32 +347,54 @@ class _AdherenceScreenState extends ConsumerState<AdherenceScreen> {
                             children: [
                               Text(
                                 item.brandName,
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
+                                  letterSpacing: -0.2,
+                                ),
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 3),
                               Text(
                                 '${schedule.doseAmount.toStringAsFixed(0)} tab • ${schedule.mealRelation.replaceAll('_', ' ')}',
-                                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                'Cabinet Stock: ${item.quantityRemaining.toStringAsFixed(0)} left',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: item.isLowStock ? AppColors.danger : AppColors.primary,
-                                ),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      color: item.isLowStock ? AppColors.danger : AppColors.safe,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${item.quantityRemaining.toStringAsFixed(0)} left in cabinet',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: item.isLowStock ? AppColors.danger : AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
                         ),
-                        ElevatedButton(
+                        ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             backgroundColor: AppColors.primary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                           onPressed: () => _recordDose(schedule, item),
-                          child: const Text('Mark Taken', style: TextStyle(fontSize: 13)),
+                          icon: const Icon(Icons.check_rounded, size: 16),
+                          label: const Text('Taken', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
                         ),
                       ],
                     ),

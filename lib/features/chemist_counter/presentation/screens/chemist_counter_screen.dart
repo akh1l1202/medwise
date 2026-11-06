@@ -263,17 +263,30 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.shopping_bag_outlined, size: 56, color: AppColors.textMuted),
-                          const SizedBox(height: 16),
+                          Container(
+                            width: 80,
+                            height: 80,
+                            decoration: const BoxDecoration(
+                              color: AppColors.primarySurface,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.shopping_bag_outlined, size: 40, color: AppColors.primary),
+                          ),
+                          const SizedBox(height: 20),
                           const Text(
                             'Your Prescription Cart is Empty',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
+                              letterSpacing: -0.3,
+                            ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           const Text(
                             'Search prescribed medicines above (e.g. Dolo 650) to instantly detect active salt matches in your home cabinet.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
                           ),
                         ],
                       ),
@@ -286,17 +299,20 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
                       final eval = evaluations[index];
                       final isCheckedOff = _checkedOffItemIds.contains(eval.cartItem.id);
 
-                      return Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
                             color: eval.strengthMismatch
                                 ? AppColors.warningBorder
                                 : eval.hasCabinetEquivalence
                                     ? AppColors.safeBorder
                                     : AppColors.border,
-                            width: 1.5,
+                            width: eval.strengthMismatch || eval.hasCabinetEquivalence ? 1.5 : 1,
                           ),
+                          boxShadow: AppColors.cardShadow,
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
@@ -309,6 +325,9 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
                                   Checkbox(
                                     value: isCheckedOff,
                                     activeColor: AppColors.primary,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
                                     onChanged: (val) {
                                       setState(() {
                                         if (val == true) {
@@ -324,67 +343,83 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Prescribed: ${eval.cartItem.brandName}',
+                                          eval.cartItem.brandName,
                                           style: TextStyle(
                                             fontSize: 16,
-                                            fontWeight: FontWeight.bold,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppColors.textPrimary,
                                             decoration: isCheckedOff ? TextDecoration.lineThrough : null,
+                                            letterSpacing: -0.2,
                                           ),
                                         ),
+                                        const SizedBox(height: 2),
                                         Text(
-                                          '${eval.cartItem.activeSalt} (${eval.cartItem.prescribedStrength})',
-                                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                          '${eval.cartItem.activeSalt} • ${eval.cartItem.prescribedStrength}',
+                                          style: const TextStyle(
+                                            fontSize: 12.5,
+                                            color: AppColors.textSecondary,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                         ),
                                       ],
                                     ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.close, size: 20, color: AppColors.textMuted),
+                                    icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textMuted),
                                     onPressed: () => ref.read(chemistCartProvider.notifier).removeItem(eval.cartItem.id),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 12),
 
                               // Active Salt Equivalence Callout Card
                               if (eval.hasCabinetEquivalence && !eval.strengthMismatch) ...[
                                 Container(
-                                  padding: const EdgeInsets.all(12),
+                                  padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
                                     color: AppColors.safeSurface,
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: AppColors.safeBorder, width: 1),
                                   ),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
-                                          const Icon(Icons.check_circle, size: 16, color: AppColors.safe),
+                                          const Icon(Icons.check_circle_rounded, size: 18, color: AppColors.safe),
                                           const SizedBox(width: 6),
                                           Text(
                                             'Equivalence Found: ${eval.matchingCabinetItem!.brandName}',
                                             style: const TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13.5,
+                                              fontWeight: FontWeight.w800,
                                               color: AppColors.safe,
                                             ),
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'You already have ${eval.quantityAlreadyOwned.toStringAsFixed(0)} tablets of ${eval.matchingCabinetItem!.brandName} (${eval.matchingCabinetItem!.activeSalt} ${eval.matchingCabinetItem!.strength}) in your ${eval.storageLocation ?? 'cabinet'}.',
-                                        style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
-                                      ),
                                       const SizedBox(height: 6),
                                       Text(
-                                        eval.canSkipPurchase
-                                            ? '💡 Skip purchase entirely! Home stock covers full prescription.'
-                                            : '💡 Recommendation: Buy only ${eval.recommendedBuyQuantity} tablets.',
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.primaryDark,
+                                        'You already have ${eval.quantityAlreadyOwned.toStringAsFixed(0)} tabs of ${eval.matchingCabinetItem!.brandName} (${eval.matchingCabinetItem!.activeSalt} ${eval.matchingCabinetItem!.strength}) in your ${eval.storageLocation ?? 'cabinet'}.',
+                                        style: const TextStyle(fontSize: 12, color: AppColors.textPrimary, height: 1.35),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: AppColors.safeBorder),
+                                        ),
+                                        child: Text(
+                                          eval.canSkipPurchase
+                                              ? '💡 Skip purchase entirely! Home stock covers full prescription.'
+                                              : '💡 Recommendation: Buy only ${eval.recommendedBuyQuantity} tablets.',
+                                          style: const TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.primaryDark,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -395,7 +430,8 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
                                     color: AppColors.warningSurface,
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: AppColors.warningBorder, width: 1),
                                   ),
                                   child: Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -405,7 +441,7 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
                                       Expanded(
                                         child: Text(
                                           eval.strengthWarningMessage ?? 'Strength concentration mismatch.',
-                                          style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                                          style: const TextStyle(fontSize: 12, color: AppColors.textPrimary, height: 1.35),
                                         ),
                                       ),
                                     ],
@@ -413,14 +449,22 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
                                 ),
                               ] else ...[
                                 Container(
-                                  padding: const EdgeInsets.all(10),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                   decoration: BoxDecoration(
                                     color: AppColors.surfaceVariant,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: Text(
-                                    'No active salt stock found in cabinet. Buy full ${eval.recommendedBuyQuantity} tablets.',
-                                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.add_shopping_cart_rounded, size: 16, color: AppColors.textSecondary),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'No active salt stock in cabinet. Buy full ${eval.recommendedBuyQuantity} tabs.',
+                                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],

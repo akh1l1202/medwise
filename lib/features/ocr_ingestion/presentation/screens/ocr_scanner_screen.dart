@@ -186,100 +186,166 @@ class _OcrScannerScreenState extends ConsumerState<OcrScannerScreen> {
   }
 
   Widget _buildScannerPrompt() {
-    return Center(
+    return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(28.0),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 110,
-              height: 110,
-              decoration: const BoxDecoration(
-                color: AppColors.primarySurface,
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFF0FDFA), Color(0xFFCCFBF1)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 shape: BoxShape.circle,
+                border: Border.all(color: AppColors.primarySurfaceBorder, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-              child: const Icon(Icons.document_scanner, size: 52, color: AppColors.primary),
+              child: const Icon(Icons.document_scanner_rounded, size: 48, color: AppColors.primary),
             ),
             const SizedBox(height: 24),
             const Text(
-              'Capture Medicine Blister Pack or Box',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              'Capture Medicine Blister or Box',
+              style: TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+                letterSpacing: -0.3,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             const Text(
               'Google ML Kit OCR processes packaging on-device. Fuzzy string matching resolves brand names with mathematical confidence scoring.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 20),
+            // Privacy & Architecture Trust Badges
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildTrustChip(Icons.lock_outline_rounded, '100% Offline'),
+                const SizedBox(width: 8),
+                _buildTrustChip(Icons.bolt_rounded, 'Fuzzy Dice Match'),
+                const SizedBox(width: 8),
+                _buildTrustChip(Icons.verified_user_outlined, 'Zero Cloud Leak'),
+              ],
+            ),
+            const SizedBox(height: 28),
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text('Camera'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    icon: const Icon(Icons.camera_alt_rounded, size: 20),
+                    label: const Text('Camera', style: TextStyle(fontWeight: FontWeight.w700)),
                     onPressed: () => _captureImage(ImageSource.camera),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton.icon(
-                    icon: const Icon(Icons.photo_library),
-                    label: const Text('Gallery'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    icon: const Icon(Icons.photo_library_rounded, size: 20),
+                    label: const Text('Gallery', style: TextStyle(fontWeight: FontWeight.w700)),
                     onPressed: () => _captureImage(ImageSource.gallery),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 28),
-            const Divider(),
-            const SizedBox(height: 12),
-            InkWell(
-              onTap: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (context) => const PrescriptionScanModal(),
-                );
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.receipt_long, color: AppColors.primary, size: 28),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Scan Doctor Prescription Slip',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Parse printed hospital/clinic slips for chemist buying',
-                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                          ),
-                        ],
+            const SizedBox(height: 24),
+            Container(height: 1, color: AppColors.borderLight),
+            const SizedBox(height: 20),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => const PrescriptionScanModal(),
+                  );
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: AppColors.subtleShadow,
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 26),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Scan Doctor Prescription Slip',
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: AppColors.textPrimary),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Parse printed hospital & clinic slips for chemist buying',
+                              style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted),
-                  ],
+                      Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textMuted),
+                    ],
+                  ),
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTrustChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: AppColors.primary),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }

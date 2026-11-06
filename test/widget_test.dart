@@ -10,8 +10,9 @@ void main() {
       ),
     );
 
-    // Verify app bar brand title
+    // Verify app bar brand title and offline status
     expect(find.text('MedWise'), findsOneWidget);
+    expect(find.text('100% Offline Safe'), findsOneWidget);
 
     // Verify navigation tabs
     expect(find.text('Cabinet'), findsOneWidget);

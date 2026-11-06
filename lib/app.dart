@@ -45,37 +45,56 @@ class _MedWiseNavigationShellState extends State<MedWiseNavigationShell> {
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        backgroundColor: AppColors.surface,
-        indicatorColor: AppColors.primarySurface,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.medical_services_outlined),
-            selectedIcon: Icon(Icons.medical_services, color: AppColors.primary),
-            label: 'Cabinet',
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(
+            top: BorderSide(color: AppColors.border, width: 1),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.storefront_outlined),
-            selectedIcon: Icon(Icons.storefront, color: AppColors.primary),
-            label: 'Chemist Buy',
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x0A0F172A),
+              blurRadius: 16,
+              offset: Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: NavigationBar(
+            selectedIndex: _currentIndex,
+            onDestinationSelected: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            height: 65,
+            backgroundColor: AppColors.surface,
+            indicatorColor: AppColors.primarySurface,
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.inventory_2_outlined),
+                selectedIcon: Icon(Icons.inventory_2, color: AppColors.primary),
+                label: 'Cabinet',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.local_pharmacy_outlined),
+                selectedIcon: Icon(Icons.local_pharmacy, color: AppColors.primary),
+                label: 'Chemist Buy',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.document_scanner_outlined),
+                selectedIcon: Icon(Icons.document_scanner, color: AppColors.primary),
+                label: 'Scan Strip',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.alarm_outlined),
+                selectedIcon: Icon(Icons.alarm, color: AppColors.primary),
+                label: 'Adherence',
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.document_scanner_outlined),
-            selectedIcon: Icon(Icons.document_scanner, color: AppColors.primary),
-            label: 'Scan Strip',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.alarm_outlined),
-            selectedIcon: Icon(Icons.alarm, color: AppColors.primary),
-            label: 'Adherence',
-          ),
-        ],
+        ),
       ),
     );
   }

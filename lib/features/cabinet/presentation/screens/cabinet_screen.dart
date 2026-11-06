@@ -98,35 +98,136 @@ class _CabinetScreenState extends ConsumerState<CabinetScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 16,
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
-                color: AppColors.primarySurface,
-                borderRadius: BorderRadius.circular(8),
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
-              child: const Icon(Icons.medication, color: AppColors.primary, size: 20),
+              child: const Icon(Icons.medication_rounded, color: Colors.white, size: 22),
             ),
-            const SizedBox(width: 10),
-            const Text(AppConstants.appName),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  AppConstants.appName,
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: AppColors.safe,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Text(
+                      '100% Offline Safe',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.safe,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ],
         ),
         actions: [
           // 2:00 AM Quick Finder Button
           cabinetAsync.maybeWhen(
-            data: (items) => IconButton(
-              icon: const Icon(Icons.flash_on, color: AppColors.warning),
-              tooltip: '2:00 AM Emergency Symptom Finder',
-              onPressed: () => _showEmergencyDialog(items),
+            data: (items) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () => _showEmergencyDialog(items),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.warningSurface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.warningBorder, width: 1),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.bolt_rounded, color: AppColors.warning, size: 16),
+                        SizedBox(width: 3),
+                        Text(
+                          '2AM Quick',
+                          style: TextStyle(
+                            color: AppColors.warning,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
             orElse: () => const SizedBox.shrink(),
           ),
           // 1-Click Demo Data Button
-          TextButton.icon(
-            icon: const Icon(Icons.auto_fix_high, size: 16),
-            label: const Text('Demo Data'),
-            onPressed: _seedDemoData,
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: _seedDemoData,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.auto_fix_high, size: 14, color: AppColors.textSecondary),
+                      SizedBox(width: 4),
+                      Text(
+                        'Demo',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -248,54 +349,88 @@ class _CabinetScreenState extends ConsumerState<CabinetScreen> {
                   orElse: () => const SizedBox.shrink(),
                 ),
 
-                // Summary Stats Strip
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      _buildStatChip('Total Stash', '${items.length}', AppColors.primary),
-                      const SizedBox(width: 8),
-                      _buildStatChip('Low Stock', '$lowStockCount', lowStockCount > 0 ? AppColors.warning : AppColors.textSecondary),
-                      const SizedBox(width: 8),
-                      _buildStatChip('Expired', '$expiredCount', expiredCount > 0 ? AppColors.danger : AppColors.textSecondary),
-                    ],
-                  ),
+                // Modern Integrated Micro-Dashboard
+                _buildMicroDashboard(
+                  total: items.length,
+                  lowStock: lowStockCount,
+                  expired: expiredCount,
                 ),
 
-                // Category Filter Chips
+                // Modern Category Filter Tabs
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   child: Row(
                     children: _categories.map((cat) {
                       final isSelected = _selectedCategory == cat;
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          label: Text(cat),
-                          selected: isSelected,
-                          onSelected: (selected) {
-                            if (selected) setState(() => _selectedCategory = cat);
-                          },
-                          selectedColor: AppColors.primarySurface,
-                          labelStyle: TextStyle(
-                            color: isSelected ? AppColors.primaryDark : AppColors.textSecondary,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(20),
+                            onTap: () => setState(() => _selectedCategory = cat),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppColors.primary : AppColors.surface,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: isSelected ? AppColors.primary : AppColors.border,
+                                  width: 1,
+                                ),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: AppColors.primary.withValues(alpha: 0.25),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              child: Text(
+                                cat,
+                                style: TextStyle(
+                                  color: isSelected ? Colors.white : AppColors.textSecondary,
+                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       );
                     }).toList(),
                   ),
                 ),
+                const SizedBox(height: 6),
 
                 // Medicine Cards List
                 if (filteredItems.isEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    margin: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
                     alignment: Alignment.center,
-                    child: Text(
-                      'No medicines in "$_selectedCategory" category.',
-                      style: const TextStyle(color: AppColors.textMuted),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.borderLight),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.inventory_2_outlined, size: 40, color: AppColors.textMuted),
+                        const SizedBox(height: 10),
+                        Text(
+                          'No medicines found in "$_selectedCategory"',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 else
@@ -316,8 +451,12 @@ class _CabinetScreenState extends ConsumerState<CabinetScreen> {
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Medicine'),
+        elevation: 3,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text(
+          'Add Medicine',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
         onPressed: () {
           Navigator.push(
             context,
@@ -328,23 +467,133 @@ class _CabinetScreenState extends ConsumerState<CabinetScreen> {
     );
   }
 
-  Widget _buildStatChip(String title, String count, Color color) {
+  Widget _buildMicroDashboard({required int total, required int lowStock, required int expired}) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppColors.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.inventory_rounded, size: 16, color: AppColors.primary),
+                  SizedBox(width: 6),
+                  Text(
+                    'Cabinet Overview',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Live Drawer',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildMetricTile(
+                title: 'Total Items',
+                count: '$total',
+                color: AppColors.primary,
+                icon: Icons.medication_rounded,
+                bgColor: AppColors.primarySurface,
+              ),
+              Container(width: 1, height: 36, color: AppColors.border),
+              _buildMetricTile(
+                title: 'Low Stock',
+                count: '$lowStock',
+                color: lowStock > 0 ? AppColors.warning : AppColors.textMuted,
+                icon: Icons.warning_amber_rounded,
+                bgColor: lowStock > 0 ? AppColors.warningSurface : AppColors.surfaceVariant,
+              ),
+              Container(width: 1, height: 36, color: AppColors.border),
+              _buildMetricTile(
+                title: 'Expired / Alert',
+                count: '$expired',
+                color: expired > 0 ? AppColors.danger : AppColors.textMuted,
+                icon: Icons.event_busy_rounded,
+                bgColor: expired > 0 ? AppColors.dangerSurface : AppColors.surfaceVariant,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricTile({
+    required String title,
+    required String count,
+    required Color color,
+    required IconData icon,
+    required Color bgColor,
+  }) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Row(
           children: [
-            Text(title, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-            const SizedBox(height: 2),
-            Text(
-              count,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(icon, size: 17, color: color),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    count,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                      height: 1.1,
+                    ),
+                  ),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
