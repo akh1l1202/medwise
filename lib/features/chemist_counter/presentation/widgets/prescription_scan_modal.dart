@@ -6,6 +6,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/confidence_badge_utils.dart';
 import '../../../ocr_ingestion/data/models/prescription_item_candidate.dart';
 import '../../../ocr_ingestion/domain/services/prescription_scanner_service.dart';
+import '../../../ocr_ingestion/presentation/screens/prescription_crop_screen.dart';
 import '../../../medicine_catalog/data/models/medicine_record.dart';
 import '../../../medicine_catalog/data/repositories/medicine_catalog_repository.dart';
 import '../../data/models/chemist_cart_item.dart';
@@ -21,6 +22,7 @@ class PrescriptionScanModal extends ConsumerStatefulWidget {
 class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
   final ImagePicker _picker = ImagePicker();
   String? _imagePath;
+  String? _rawCapturedImagePath;
   bool _isProcessing = false;
   List<PrescriptionItemCandidate> _candidates = [];
   List<String> _rawLines = [];
@@ -87,35 +89,78 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
       final XFile? file = await _picker.pickImage(source: source);
       if (file == null) return;
 
-      setState(() {
-        _imagePath = file.path;
-        _isProcessing = true;
-        _candidates = [];
-        _rawLines = [];
-        _documentType = DocumentType.medicalPrescription;
-        _rejectionReason = null;
-        _overallReadabilityScore = 1.0;
-        _isHandwrittenOrLowReadability = false;
-        _manualSearchResults = [];
-      });
+      _rawCapturedImagePath = file.path;
 
-      final scanner = ref.read(prescriptionScannerServiceProvider);
-      final result = await scanner.processPrescriptionImage(file.path);
+      // Navigate to the Crop & Focus screen to isolate the prescribed medicines
+      if (!mounted) return;
+      final String? selectedImagePath = await Navigator.of(context).push<String>(
+        MaterialPageRoute(
+          builder: (context) => PrescriptionCropScreen(imagePath: file.path),
+        ),
+      );
 
-      setState(() {
-        _candidates = result.candidates;
-        _rawLines = result.rawExtractedLines;
-        _documentType = result.documentType;
-        _rejectionReason = result.rejectionReason;
-        _overallReadabilityScore = result.overallReadabilityScore;
-        _isHandwrittenOrLowReadability = result.isHandwrittenOrLowReadability;
-        _isProcessing = false;
-      });
+      // If user cancelled out of crop screen without selecting anything
+      if (selectedImagePath == null) return;
+
+      await _processImage(selectedImagePath);
     } catch (e) {
       setState(() => _isProcessing = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to read prescription: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _reCropImage() async {
+    final pathToCrop = _rawCapturedImagePath ?? _imagePath;
+    if (pathToCrop == null) return;
+
+    final String? selectedImagePath = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (context) => PrescriptionCropScreen(imagePath: pathToCrop),
+      ),
+    );
+
+    if (selectedImagePath != null) {
+      await _processImage(selectedImagePath);
+    }
+  }
+
+  Future<void> _processImage(String path) async {
+    setState(() {
+      _imagePath = path;
+      _isProcessing = true;
+      _candidates = [];
+      _rawLines = [];
+      _documentType = DocumentType.medicalPrescription;
+      _rejectionReason = null;
+      _overallReadabilityScore = 1.0;
+      _isHandwrittenOrLowReadability = false;
+      _manualSearchResults = [];
+    });
+
+    try {
+      final scanner = ref.read(prescriptionScannerServiceProvider);
+      final result = await scanner.processPrescriptionImage(path);
+
+      if (mounted) {
+        setState(() {
+          _candidates = result.candidates;
+          _rawLines = result.rawExtractedLines;
+          _documentType = result.documentType;
+          _rejectionReason = result.rejectionReason;
+          _overallReadabilityScore = result.overallReadabilityScore;
+          _isHandwrittenOrLowReadability = result.isHandwrittenOrLowReadability;
+          _isProcessing = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to process image: $e')),
         );
       }
     }
@@ -504,21 +549,39 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
                           height: 1.4,
                         ),
                       ),
-                      const SizedBox(height: 28),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Scan Doctor\'s Prescription', style: TextStyle(fontWeight: FontWeight.bold)),
-                        onPressed: () => setState(() {
-                          _imagePath = null;
-                          _documentType = DocumentType.medicalPrescription;
-                          _rejectionReason = null;
-                        }),
+                      const SizedBox(height: 24),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          if (_rawCapturedImagePath != null)
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              icon: const Icon(Icons.crop, size: 18),
+                              label: const Text('Re-crop Medicine Area', style: TextStyle(fontWeight: FontWeight.bold)),
+                              onPressed: _reCropImage,
+                            ),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('New Photo', style: TextStyle(fontWeight: FontWeight.bold)),
+                            onPressed: () => setState(() {
+                              _imagePath = null;
+                              _rawCapturedImagePath = null;
+                              _documentType = DocumentType.medicalPrescription;
+                              _rejectionReason = null;
+                            }),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -541,9 +604,26 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
                           'Extracted Raw Lines (${_rawLines.length})',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                         ),
-                        TextButton(
-                          onPressed: () => setState(() => _imagePath = null),
-                          child: const Text('Retake Photo', style: TextStyle(fontSize: 12)),
+                        Row(
+                          children: [
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              ),
+                              icon: const Icon(Icons.crop, size: 14),
+                              label: const Text('Re-crop', style: TextStyle(fontSize: 12)),
+                              onPressed: _reCropImage,
+                            ),
+                            const SizedBox(width: 6),
+                            TextButton(
+                              onPressed: () => setState(() {
+                                _imagePath = null;
+                                _rawCapturedImagePath = null;
+                              }),
+                              child: const Text('Retake', style: TextStyle(fontSize: 12)),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -621,12 +701,25 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
                   onPressed: () => setState(() => _showManualSearchField = !_showManualSearchField),
                 ),
                 const SizedBox(width: 4),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  ),
+                  icon: const Icon(Icons.crop, size: 14),
+                  label: const Text('Re-crop', style: TextStyle(fontSize: 12)),
+                  onPressed: _reCropImage,
+                ),
+                const SizedBox(width: 4),
                 OutlinedButton(
                   style: OutlinedButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   ),
-                  onPressed: () => setState(() => _imagePath = null),
+                  onPressed: () => setState(() {
+                    _imagePath = null;
+                    _rawCapturedImagePath = null;
+                  }),
                   child: const Text('Retake', style: TextStyle(fontSize: 12)),
                 ),
               ],
