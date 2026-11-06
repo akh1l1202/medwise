@@ -10,12 +10,12 @@ final imageCropperServiceProvider = Provider<ImageCropperService>((ref) {
 });
 
 class ImageCropperService {
-  final Directory? _customOutputDir;
+  final Directory? customOutputDir;
 
-  ImageCropperService({Directory? customOutputDir}) : _customOutputDir = customOutputDir;
+  ImageCropperService({this.customOutputDir});
 
   Future<Directory> _getOutputDir() async {
-    if (_customOutputDir != null) return _customOutputDir;
+    if (customOutputDir != null) return customOutputDir!;
     return await getTemporaryDirectory();
   }
 

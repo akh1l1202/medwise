@@ -263,13 +263,18 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B131A), // Deep dark matte backdrop for optimal preview
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.textPrimary,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: AppColors.border),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(null),
         ),
         title: const Column(
@@ -277,22 +282,22 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
           children: [
             Text(
               'Focus Prescribed Medicines',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
             ),
             Text(
               'Crop out logos & headers for >95% OCR accuracy',
-              style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.rotate_right_rounded, size: 24),
+            icon: const Icon(Icons.rotate_right_rounded, size: 24, color: AppColors.primary),
             tooltip: 'Rotate 90°',
             onPressed: _isLoading || _isProcessing ? null : _rotateClockwise,
           ),
           IconButton(
-            icon: const Icon(Icons.restart_alt_rounded, size: 24),
+            icon: const Icon(Icons.restart_alt_rounded, size: 24, color: AppColors.textSecondary),
             tooltip: 'Reset Crop Window',
             onPressed: _isLoading || _isProcessing ? null : _resetCrop,
           ),
@@ -306,21 +311,22 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
               margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                color: AppColors.primarySurface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.primaryLight.withValues(alpha: 0.35)),
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.crop_free_rounded, color: AppColors.primaryLight, size: 20),
+                  Icon(Icons.crop_free_rounded, color: AppColors.primary, size: 20),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Drag the corner handles around the medicine names and dosages only. Exclude hospital headers & footers.',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: AppColors.primaryDark,
                         fontSize: 12,
-                        height: 1.3,
+                        fontWeight: FontWeight.w500,
+                        height: 1.35,
                       ),
                     ),
                   ),
@@ -330,127 +336,146 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
 
             // Main Interactive Crop & Preview Area
             Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(color: AppColors.primaryLight),
-                          SizedBox(height: 16),
-                          Text('Loading prescription photo...', style: TextStyle(color: Colors.white70)),
-                        ],
-                      ),
-                    )
-                  : _errorMessage != null
-                      ? Center(
-                          child: Text(_errorMessage!, style: const TextStyle(color: AppColors.danger)),
-                        )
-                      : LayoutBuilder(
-                          builder: (context, constraints) {
-                            final viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
-                            _updateLayout(viewportSize);
-
-                            return GestureDetector(
-                              onPanStart: _onPanStart,
-                              onPanUpdate: _onPanUpdate,
-                              onPanEnd: _onPanEnd,
-                              child: Stack(
-                                children: [
-                                  // 1. Rendered Image
-                                  if (_imageDisplayRect != null && _loadedImage != null)
-                                    Positioned.fromRect(
-                                      rect: _imageDisplayRect!,
-                                      child: RotatedBox(
-                                        quarterTurns: (_rotationDegrees ~/ 90) % 4,
-                                        child: RawImage(
-                                          image: _loadedImage,
-                                          fit: BoxFit.fill,
-                                        ),
-                                      ),
-                                    ),
-
-                                  // 2. Custom Painter Scrim & Crop Box
-                                  if (_cropRect != null && _imageDisplayRect != null)
-                                    Positioned.fill(
-                                      child: CustomPaint(
-                                        painter: _CropOverlayPainter(
-                                          cropRect: _cropRect!,
-                                          imageRect: _imageDisplayRect!,
-                                        ),
-                                      ),
-                                    ),
-
-                                  // 3. Floating "Medicine List Area" Label
-                                  if (_cropRect != null)
-                                    Positioned(
-                                      left: _cropRect!.left + 8,
-                                      top: math.max(0.0, _cropRect!.top - 28),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.primary,
-                                          borderRadius: BorderRadius.circular(6),
-                                          boxShadow: const [
-                                            BoxShadow(
-                                              color: Colors.black45,
-                                              blurRadius: 4,
-                                              offset: Offset(0, 2),
-                                            ),
-                                          ],
-                                        ),
-                                        child: const Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.medication_outlined, size: 12, color: Colors.white),
-                                            SizedBox(width: 4),
-                                            Text(
-                                              'Prescribed Medicines Only',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 10.5,
-                                                fontWeight: FontWeight.bold,
-                                                letterSpacing: 0.3,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-
-                                  // Processing Indicator
-                                  if (_isProcessing)
-                                    Container(
-                                      color: Colors.black54,
-                                      child: const Center(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            CircularProgressIndicator(color: AppColors.primaryLight),
-                                            SizedBox(height: 16),
-                                            Text(
-                                              'Cropping & Preparing High-Precision OCR...',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            );
-                          },
+              child: Container(
+                color: const Color(0xFFE2E8F0), // Neutral slate workbench background for image
+                child: _isLoading
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(color: AppColors.primary),
+                            SizedBox(height: 16),
+                            Text('Loading prescription photo...', style: TextStyle(color: AppColors.textSecondary)),
+                          ],
                         ),
+                      )
+                    : _errorMessage != null
+                        ? Center(
+                            child: Text(_errorMessage!, style: const TextStyle(color: AppColors.danger)),
+                          )
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              final viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
+                              _updateLayout(viewportSize);
+
+                              return GestureDetector(
+                                onPanStart: _onPanStart,
+                                onPanUpdate: _onPanUpdate,
+                                onPanEnd: _onPanEnd,
+                                child: Stack(
+                                  children: [
+                                    // 1. Rendered Image
+                                    if (_imageDisplayRect != null && _loadedImage != null)
+                                      Positioned.fromRect(
+                                        rect: _imageDisplayRect!,
+                                        child: RotatedBox(
+                                          quarterTurns: (_rotationDegrees ~/ 90) % 4,
+                                          child: RawImage(
+                                            image: _loadedImage,
+                                            fit: BoxFit.fill,
+                                          ),
+                                        ),
+                                      ),
+
+                                    // 2. Custom Painter Scrim & Crop Box
+                                    if (_cropRect != null && _imageDisplayRect != null)
+                                      Positioned.fill(
+                                        child: CustomPaint(
+                                          painter: _CropOverlayPainter(
+                                            cropRect: _cropRect!,
+                                            imageRect: _imageDisplayRect!,
+                                          ),
+                                        ),
+                                      ),
+
+                                    // 3. Floating "Medicine List Area" Label
+                                    if (_cropRect != null)
+                                      Positioned(
+                                        left: _cropRect!.left + 8,
+                                        top: math.max(0.0, _cropRect!.top - 28),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary,
+                                            borderRadius: BorderRadius.circular(6),
+                                            boxShadow: const [
+                                              BoxShadow(
+                                                color: Color(0x33000000),
+                                                blurRadius: 4,
+                                                offset: Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.medication_outlined, size: 12, color: Colors.white),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                'Prescribed Medicines Only',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 0.2,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+
+                                    // Processing Indicator
+                                    if (_isProcessing)
+                                      Container(
+                                        color: Colors.white.withValues(alpha: 0.88),
+                                        child: const Center(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              CircularProgressIndicator(color: AppColors.primary),
+                                              SizedBox(height: 16),
+                                              Text(
+                                                'Cropping & Preparing High-Precision OCR...',
+                                                style: TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                              SizedBox(height: 6),
+                                              Text(
+                                                'Excluding headers for maximum reading accuracy',
+                                                style: TextStyle(
+                                                  color: AppColors.textSecondary,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+              ),
             ),
 
             // Bottom Actions Bar
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: const BoxDecoration(
-                color: Color(0xFF0F172A),
-                border: Border(top: BorderSide(color: Color(0xFF1E293B))),
+                color: AppColors.surface,
+                border: Border(top: BorderSide(color: AppColors.border)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x08000000),
+                    blurRadius: 6,
+                    offset: Offset(0, -2),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
@@ -459,8 +484,8 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
                     flex: 4,
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white70,
-                        side: const BorderSide(color: Color(0xFF334155)),
+                        foregroundColor: AppColors.textSecondary,
+                        side: const BorderSide(color: AppColors.border),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
@@ -478,7 +503,7 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        elevation: 2,
+                        elevation: 0,
                       ),
                       icon: const Icon(Icons.crop_free_rounded, size: 20),
                       label: const Text(
@@ -518,13 +543,13 @@ class _CropOverlayPainter extends CustomPainter {
       ..fillType = PathFillType.evenOdd;
 
     final scrimPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.68)
+      ..color = const Color(0xFF0F172A).withValues(alpha: 0.42)
       ..style = PaintingStyle.fill;
     canvas.drawPath(path, scrimPaint);
 
     // 2. Draw 3x3 Rule-of-Thirds Grid Guidelines inside cropRect
     final gridPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.30)
+      ..color = Colors.white.withValues(alpha: 0.65)
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
 
@@ -564,8 +589,8 @@ class _CropOverlayPainter extends CustomPainter {
 
     // 4. Draw Professional Corner Brackets & Handles
     final cornerBracketPaint = Paint()
-      ..color = AppColors.primaryLight
-      ..strokeWidth = 4.5
+      ..color = AppColors.primary
+      ..strokeWidth = 4.0
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
