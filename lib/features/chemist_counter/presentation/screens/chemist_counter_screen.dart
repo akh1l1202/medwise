@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/utils/formatters.dart';
 import '../../../cabinet/data/models/cabinet_item.dart';
 import '../../../cabinet/presentation/controllers/cabinet_controller.dart';
 import '../../../medicine_catalog/data/models/medicine_record.dart';
@@ -124,7 +123,6 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
   Widget build(BuildContext context) {
     final cart = ref.watch(chemistCartProvider);
     final evaluations = ref.watch(smartBuyEvaluationProvider);
-    final totalSavings = ref.watch(totalEstimatedSavingsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -145,49 +143,6 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
       ),
       body: Column(
         children: [
-          // Total Savings Header Ticker
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            color: AppColors.primarySurface,
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.savings, color: AppColors.primary, size: 28),
-                ),
-                const SizedBox(width: 14),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'ESTIMATED PHARMACY SAVINGS',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primaryDark,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      Formatters.formatRupees(totalSavings),
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primaryDark,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
           // Prescription Search Input Bar
           Padding(
             padding: const EdgeInsets.all(16),
@@ -425,7 +380,7 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
                                       Text(
                                         eval.canSkipPurchase
                                             ? '💡 Skip purchase entirely! Home stock covers full prescription.'
-                                            : '💡 Recommendation: Buy only ${eval.recommendedBuyQuantity} tablets (Save ${Formatters.formatRupees(eval.estimatedSavings)}).',
+                                            : '💡 Recommendation: Buy only ${eval.recommendedBuyQuantity} tablets.',
                                         style: const TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.bold,

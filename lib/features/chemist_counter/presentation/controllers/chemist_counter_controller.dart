@@ -42,8 +42,3 @@ final smartBuyEvaluationProvider = Provider<List<SmartBuyResult>>((ref) {
     cabinetItems: cabinetItems,
   );
 });
-
-final totalEstimatedSavingsProvider = Provider<double>((ref) {
-  final results = ref.watch(smartBuyEvaluationProvider);
-  return results.fold<double>(0.0, (sum, result) => sum + result.estimatedSavings);
-});
