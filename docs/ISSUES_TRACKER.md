@@ -11,7 +11,7 @@
 | # | Issue Summary | Status | Category |
 |---|---|---|---|
 | **1** | Remove "Estimated Pharmacy Savings" ticker and related UI | 🟢 **Completed** | UI Simplification / Feature Removal |
-| **2** | Overall UI visual overhaul & polish (elevate from generic to premium healthcare aesthetic) | ⚪ Pending User Gate | UI / Design System |
+| **2** | Overall UI visual overhaul & polish (elevate from generic to premium healthcare aesthetic) | 🟢 **Completed** | UI / Design System |
 | **3** | Fix pixel overflow on 2:00 AM Quick Finder dialog | ⚪ Pending User Gate | Bug / Responsive UI |
 | **4** | Remove "Demo Data" button and static seed stash | ⚪ Pending User Gate | Cleanup / Redundant Code |
 | **5** | Remove assumed 10-tab quantity selector from Chemist Counter buy page (handle syrups, drops, liquids) | ⚪ Pending User Gate | UX / Domain Logic |
@@ -44,6 +44,43 @@
   - `flutter analyze`: **0 warnings / 0 errors**.
   - `flutter test`: **All 40 unit and widget tests pass**.
   - **Deployed to device:** Compiled and installed to connected phone (`CPH2613`). The Chemist Counter page now immediately presents the clean search and prescription scanner without any savings banners. Fully resolved.
+
+---
+
+### Issue 2: Overall UI Visual Overhaul & Polish
+* **Status:** 🟢 **Completed & Deployed**
+* **Root Cause:** The interface previously used default Material 3 component stylings (raw unstyled AppBars, flat rectangular card containers with thin 1px gray borders, raw `ChoiceChips`, basic system typography, and unstyled bottom navigation). This made the app feel like a generic student project or template rather than a modern, polished, and trustworthy clinical healthcare product (like Apple Health, One Medical, or PillPack).
+* **Changes Made:**
+  1. **Design System & Global Theme Tokens ([`app_colors.dart`](../lib/core/constants/app_colors.dart) & [`app_theme.dart`](../lib/core/theme/app_theme.dart)):**
+     - Introduced `primaryGradient` (Teal `#0D9488` $\rightarrow$ `#0F766E`), `primarySurfaceBorder`, and layered ambient card drop-shadows (`cardShadow`, `subtleShadow`, `heroShadow`).
+     - Standardized rounded corners to $20\text{px}$ for cards, $14\text{px}$ for buttons and inputs.
+     - Upgraded typography hierarchy with intentional negative letter spacing (`-0.4` to `-0.2`) on headlines, crisp weights (`FontWeight.w800` for titles, `w700` for headers, `w500` for subtitles).
+  2. **Navigation Shell ([`app.dart`](../lib/app.dart)):**
+     - Enclosed bottom navigation bar in a sleek white container with top border and soft ambient upward shadow (`Color(0x0A0F172A)`, blur $16$).
+     - Upgraded tab icons to medical inventory, pharmacy storefront, OCR document scanner, and alarm clock.
+  3. **Cabinet Screen & Header ([`cabinet_screen.dart`](../lib/features/cabinet/presentation/screens/cabinet_screen.dart)):**
+     - Added branded top App Bar with a gradient brand avatar, bold app title, and live `● 100% Offline Safe` emerald status pill.
+     - Styled the 2:00 AM Quick Finder as an eye-catching amber pill action with lightning icon (`⚡ 2AM Quick`).
+     - Replaced 3 disconnected gray stat boxes with an integrated **Micro-Dashboard** card featuring 3 metric columns (Total Items, Low Stock Alert, Expired/Alert) with custom background icon badges.
+     - Upgraded category chips from standard `ChoiceChips` to custom animated pill buttons with active teal glow shadows.
+  4. **Medicine Cards ([`medicine_card.dart`](../lib/features/cabinet/presentation/widgets/medicine_card.dart)):**
+     - Replaced standard flat card with an elevated rounded container ($20\text{px}$) featuring soft ambient drop shadows.
+     - Form-specific gradient avatar badges (Tablets, Capsules, Syrups, Drops, Inhalers) with color-coded safety indicators.
+     - Sleek stock pill indicator (`X left` with low-stock warning tag).
+     - Refined dual expiry badge with dot indicator and physical drawer location pill.
+  5. **Chemist Counter & Adherence ([`chemist_counter_screen.dart`](../lib/features/chemist_counter/presentation/screens/chemist_counter_screen.dart) & [`adherence_screen.dart`](../lib/features/notifications/presentation/screens/adherence_screen.dart)):**
+     - Upgraded prescription search bar with soft rounded styling and prominent Scan Slip pill trigger.
+     - Redesigned active salt equivalence callout cards with soft emerald surfaces, checkmark icons, and clean recommendation pills.
+     - Styled adherence cards with clock containers, meal relation tags, and pill-shaped "Taken" action buttons.
+  6. **Scanner Prompt ([`ocr_scanner_screen.dart`](../lib/features/ocr_ingestion/presentation/screens/ocr_scanner_screen.dart)):**
+     - Redesigned welcome view with circular gradient scanner icon, trust pills (`100% Offline`, `Fuzzy Dice Match`, `Zero Cloud Leak`), and elevated camera/gallery buttons.
+* **Redundant Code Removed:**
+  - Removed outdated standalone `_buildStatChip` implementation in `cabinet_screen.dart`.
+  - Replaced legacy flat `Card` wrappers in `medicine_card.dart`, `chemist_counter_screen.dart`, and `adherence_screen.dart` with unified modern container decorations.
+* **Resolution & Testing Status:**
+  - `flutter analyze`: **0 warnings / 0 errors**.
+  - `flutter test`: **All 40 unit and widget tests pass**.
+  - **Deployed to device:** Compiled debug APK and streamed install to connected device (`CPH2613`). Verified brand header, navigation bar, micro-dashboard, and card elevations. Fully resolved.
 
 ---
 
