@@ -27,12 +27,29 @@ class ConfidenceBadgeUtils {
     }
   }
 
-  static Widget buildBadgeWidget(ConfidenceLevel level, int percentage) {
+  static Widget buildBadgeWidget(ConfidenceLevel level, int percentage, {bool compact = false}) {
     final color = getBadgeColor(level);
     final bgColor = getBadgeBackgroundColor(level);
 
+    String labelText;
+    if (compact) {
+      switch (level) {
+        case ConfidenceLevel.high:
+          labelText = '$percentage% Verified';
+          break;
+        case ConfidenceLevel.medium:
+          labelText = '$percentage% Match';
+          break;
+        case ConfidenceLevel.low:
+          labelText = '$percentage% Unclear';
+          break;
+      }
+    } else {
+      labelText = '$percentage% ${level.label}';
+    }
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10, vertical: compact ? 3 : 4),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
@@ -42,19 +59,19 @@ class ConfidenceBadgeUtils {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 8,
-            height: 8,
+            width: 7,
+            height: 7,
             decoration: BoxDecoration(
               color: color,
               shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 5),
           Text(
-            '$percentage% ${level.label}',
+            labelText,
             style: TextStyle(
               color: color,
-              fontSize: 12,
+              fontSize: compact ? 11 : 12,
               fontWeight: FontWeight.w600,
             ),
           ),

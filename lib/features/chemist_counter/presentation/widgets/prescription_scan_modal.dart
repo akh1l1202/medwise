@@ -599,24 +599,31 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
             if (_isHandwrittenOrLowReadability || _showManualSearchField)
               _buildReadabilityBannerAndSearchBar(),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Detected Medicines (${_candidates.length})',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                Expanded(
+                  child: Text(
+                    'Detected Medicines (${_candidates.length})',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                Row(
-                  children: [
-                    TextButton.icon(
-                      icon: Icon(_showManualSearchField ? Icons.close : Icons.add, size: 16),
-                      label: Text(_showManualSearchField ? 'Hide Search' : 'Add Manually', style: const TextStyle(fontSize: 12)),
-                      onPressed: () => setState(() => _showManualSearchField = !_showManualSearchField),
-                    ),
-                    TextButton(
-                      onPressed: () => setState(() => _imagePath = null),
-                      child: const Text('Retake Photo', style: TextStyle(fontSize: 12)),
-                    ),
-                  ],
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  ),
+                  icon: Icon(_showManualSearchField ? Icons.close : Icons.add, size: 15),
+                  label: Text(_showManualSearchField ? 'Close' : 'Add', style: const TextStyle(fontSize: 12)),
+                  onPressed: () => setState(() => _showManualSearchField = !_showManualSearchField),
+                ),
+                const SizedBox(width: 4),
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  ),
+                  onPressed: () => setState(() => _imagePath = null),
+                  child: const Text('Retake', style: TextStyle(fontSize: 12)),
                 ),
               ],
             ),
@@ -682,31 +689,29 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Expanded(
                                       child: Text(
                                         candidate.matchedRecord.brandName,
                                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                        softWrap: true,
                                       ),
                                     ),
-                                    ConfidenceBadgeUtils.buildBadgeWidget(
-                                      candidate.level,
-                                      candidate.confidencePercentage,
-                                    ),
-                                    const SizedBox(width: 2),
+                                    const SizedBox(width: 4),
                                     IconButton(
                                       visualDensity: VisualDensity.compact,
                                       padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
+                                      constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                                       icon: const Icon(Icons.edit_outlined, size: 16, color: AppColors.primary),
                                       tooltip: 'Edit name or quantity',
                                       onPressed: () => _editCandidateDialog(candidate, index),
                                     ),
-                                    const SizedBox(width: 6),
+                                    const SizedBox(width: 4),
                                     IconButton(
                                       visualDensity: VisualDensity.compact,
                                       padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
+                                      constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                                       icon: const Icon(Icons.close, size: 16, color: AppColors.textMuted),
                                       tooltip: 'Remove',
                                       onPressed: () => setState(() => _candidates.removeAt(index)),
@@ -718,17 +723,35 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
                                   '${candidate.matchedRecord.activeSalt}${candidate.matchedRecord.strength.isNotEmpty ? " • ${candidate.matchedRecord.strength}" : ""}',
                                   style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                                 ),
-                                if (candidate.dosageInstruction != null) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Dosage: ${candidate.dosageInstruction}',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.primaryDark,
-                                      fontWeight: FontWeight.w600,
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    ConfidenceBadgeUtils.buildBadgeWidget(
+                                      candidate.level,
+                                      candidate.confidencePercentage,
+                                      compact: true,
                                     ),
-                                  ),
-                                ],
+                                    if (candidate.dosageInstruction != null)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primarySurface,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          candidate.dosageInstruction!,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: AppColors.primaryDark,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
                                 const SizedBox(height: 8),
                                 // Quantity Stepper
                                 Row(
