@@ -457,8 +457,8 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
                 ),
               ),
             ),
-          ] else if (_documentType == DocumentType.utilityOrTaxBill) ...[
-            // Explicit rejection of non-prescription utility / tax / service bills
+          ] else if (_documentType == DocumentType.utilityOrTaxBill || _documentType == DocumentType.nonPrescriptionDocument) ...[
+            // Explicit rejection of non-prescription utility / tax bills, commercial receipts, and unrelated photos
             Expanded(
               child: Center(
                 child: Padding(
@@ -473,17 +473,21 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
                           shape: BoxShape.circle,
                           border: Border.all(color: AppColors.dangerBorder, width: 2),
                         ),
-                        child: const Icon(
-                          Icons.receipt_long_outlined,
+                        child: Icon(
+                          _documentType == DocumentType.utilityOrTaxBill
+                              ? Icons.receipt_long_outlined
+                              : Icons.no_photography_outlined,
                           size: 48,
                           color: AppColors.danger,
                         ),
                       ),
                       const SizedBox(height: 20),
-                      const Text(
-                        'Non-Prescription Document Detected',
+                      Text(
+                        _documentType == DocumentType.utilityOrTaxBill
+                            ? 'Utility / Electricity Bill Detected'
+                            : 'Non-Prescription Document Detected',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: AppColors.danger,
@@ -492,7 +496,7 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
                       const SizedBox(height: 10),
                       Text(
                         _rejectionReason ??
-                            'The scanned image appears to be a utility, electricity, or tax bill rather than a doctor\'s prescription.\n\nPlease scan a medical prescription or OPD slip.',
+                            'The scanned photo does not appear to be a doctor\'s prescription or hospital OPD slip.\n\nPlease scan a valid medical prescription.',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 14,

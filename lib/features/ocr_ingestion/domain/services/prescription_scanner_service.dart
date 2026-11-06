@@ -13,6 +13,7 @@ final prescriptionScannerServiceProvider = Provider<PrescriptionScannerService>(
 
 enum DocumentType {
   medicalPrescription,
+  nonPrescriptionDocument,
   utilityOrTaxBill,
   unrecognizedDocument,
 }
@@ -35,6 +36,9 @@ class PrescriptionScanResult {
   });
 
   bool get isPrescription => documentType == DocumentType.medicalPrescription;
+  bool get isNonPrescription =>
+      documentType == DocumentType.nonPrescriptionDocument ||
+      documentType == DocumentType.utilityOrTaxBill;
   bool get requiresManualInput => isHandwrittenOrLowReadability || candidates.isEmpty;
   int get readabilityPercentage => (overallReadabilityScore * 100).round().clamp(0, 100);
 }
@@ -64,39 +68,73 @@ class PrescriptionScannerService {
     RegExp(r'\b(?:signature|consultant|doctor\s*signature|seal)\b', caseSensitive: false),
   ];
 
-  /// Patterns indicating non-prescription documents (e.g. electricity, gas, water, or appliance bills)
-  static final List<RegExp> _billPatterns = [
-    RegExp(r'\b(?:bill\s*of\s*supply|tax\s*invoice|retail\s*invoice|receipt)\b', caseSensitive: false),
-    RegExp(r'\b(?:electricity|power|gas\s*bill|water\s*bill|property\s*tax)\b', caseSensitive: false),
+  /// Utilities, Discoms & Municipal Tax Bills specifically
+  static final List<RegExp> _utilityBillPatterns = [
+    RegExp(r'\b(?:bill\s*of\s*supply|electricity|power|gas\s*bill|water\s*bill|property\s*tax)\b', caseSensitive: false),
     RegExp(r'\b(?:consumer\s*(?:no|number|id)|ca\s*no|k\s*no|meter\s*(?:no|number|reading))\b', caseSensitive: false),
-    RegExp(r'\b(?:kwh|kva|connected\s*load|contract\s*demand|tariff)\b', caseSensitive: false),
-    RegExp(r'\b(?:discom|mngl|igcl|mahadiscom|tata\s*power|adani\s*electricity|bses)\b', caseSensitive: false),
+    RegExp(r'\b(?:kwh|kva|connected\s*load|contract\s*demand|tariff|discom|mahadiscom|tata\s*power|adani\s*electricity|bses)\b', caseSensitive: false),
     RegExp(r'\b(?:municipal\s*corporation|ward\s*office|nagar\s*nigam|gram\s*panchayat)\b', caseSensitive: false),
-    RegExp(r'\b(?:gstin|gst\s*no|service\s*tax|cin\s*no)\b', caseSensitive: false),
-    RegExp(r'\b(?:total\s*amount\s*payable|due\s*date|billing\s*unit|prompt\s*payment)\b', caseSensitive: false),
     RegExp(r'\b(?:authorised\s*service\s*center|service\s*centre|appliance|product\s*query)\b', caseSensitive: false),
+  ];
+
+  /// Comprehensive patterns identifying non-prescription documents across all domains:
+  /// - Utilities & Municipal Bills (electricity, gas, water, property tax)
+  /// - Commercial Invoices & Receipts (retail, sales, banking, tax invoices)
+  /// - Restaurants & Food Delivery (menus, kitchen tickets, table orders, cafes)
+  /// - Supermarkets & Groceries (itemized grocery receipts, hypermarkets)
+  /// - Shipping & Logistics (courier slips, tracking waybills, e-commerce boxes)
+  /// - Identity Documents & Official Records (ID cards, licenses, passports, certificates)
+  static final List<RegExp> _nonPrescriptionPatterns = [
+    // 1. Utilities, Discoms & Municipal Tax Bills
+    ..._utilityBillPatterns,
+    // 2. Commercial Invoices, Receipts & Financial Documents
+    RegExp(r'\b(?:tax\s*invoice|retail\s*invoice|commercial\s*invoice|cash\s*receipt|sales\s*receipt|invoice\s*no)\b', caseSensitive: false),
+    RegExp(r'\b(?:gstin|gst\s*no|cin\s*no|service\s*tax|total\s*amount\s*payable|subtotal|sub-total|balance\s*due)\b', caseSensitive: false),
+    RegExp(r'\b(?:bank\s*statement|ifsc|account\s*number|bank\s*branch|atm\s*withdrawal|upi\s*id|payment\s*mode)\b', caseSensitive: false),
+    // 3. Restaurants, Cafes & Food Delivery
+    RegExp(r'\b(?:restaurant|cafe|canteen|dining|kitchen|menu|table\s*no|order\s*no|waiter|swiggy|zomato|dessert|appetizer|beverage|fast\s*food)\b', caseSensitive: false),
+    // 4. Retail, Supermarkets & Groceries
+    RegExp(r'\b(?:supermarket|grocery|hypermarket|d-mart|dmart|reliance\s*retail|bigbasket|blinkit|zepto|item\s*qty\s*rate)\b', caseSensitive: false),
+    // 5. E-commerce, Couriers & Shipping Logistics
+    RegExp(r'\b(?:amazon|flipkart|tracking\s*no|courier|awb|consignee|ship\s*to|delivery\s*partner|return\s*policy|parcel)\b', caseSensitive: false),
+    // 6. Identity Documents, Legal & Certificates
+    RegExp(r'\b(?:aadhaar|pan\s*card|driving\s*licen[cs]e|passport|voter\s*id|birth\s*certificate|degree\s*certificate)\b', caseSensitive: false),
+    // 7. Transport, Tolls & Services
+    RegExp(r'\b(?:toll\s*plaza|fastag|traffic\s*police|e-challan|parking\s*receipt|boarding\s*pass|flight\s*ticket|pnr)\b', caseSensitive: false),
   ];
 
   /// Positive medical markers confirming legitimate clinical prescription documents
   static final List<RegExp> _prescriptionConfidencePatterns = [
     RegExp(r'^\s*dr\.?\s+[a-z]', caseSensitive: false),
-    RegExp(r'\b(?:doctor|physician|surgeon|consultant|clinic|hospital|dispensary|nursing\s*home)\b', caseSensitive: false),
-    RegExp(r'\b(?:mbbs|bams|bhms|md|ms|dnb|fcps|dorl|m\.d\.|m\.b\.b\.s\.)\b', caseSensitive: false),
-    RegExp(r'\b(?:rx|r\/x|patient|pt\.?|diagnosis|symptoms|chief\s*complaint)\b', caseSensitive: false),
-    RegExp(r'\b(?:tab\.?|cap\.?|syp\.?|tablets?|capsules?|syrup|dosage|after\s*food|before\s*food)\b', caseSensitive: false),
-    RegExp(r'\b(?:1-[012]-[012]|[012]-[012]-1|od|bd|bid|tid|tds|qid|sos|hs)\b', caseSensitive: false),
+    RegExp(r'\b(?:doctor|physician|surgeon|consultant|specialist|practitioner|pediatrician|cardiologist|neurologist|psychiatrist|dermatologist|gynecologist|orthopedic)\b', caseSensitive: false),
+    RegExp(r'\b(?:mbbs|bams|bhms|md|ms|dnb|fcps|dorl|m\.d\.|m\.b\.b\.s\.|regd?\s*(?:no)?|mmc\s*\d+|mc\s*\d+)\b', caseSensitive: false),
+    RegExp(r'\b(?:clinic|hospital|dispensary|nursing\s*home|polyclinic|health\s*centre|medical\s*center|opd|ipd)\b', caseSensitive: false),
+    RegExp(r'\b(?:rx|r\/x|prescription|patient|pt\.?|diagnosis|symptoms|chief\s*complaint|c\/o|h\/o|provisional\s*diagnosis|vitals|b\.?p\.?[:\s]|spo2|uhid)\b', caseSensitive: false),
+    RegExp(r'\b(?:tab\.?|cap\.?|syp\.?|inj\.?|tablets?|capsules?|syrup|drops?|suspension|ointment|cream|gel|lotion)\b', caseSensitive: false),
+    RegExp(r'\b(?:1-[012]-[012]|[012]-[012]-1|[012]-[012]-[012]|od|bd|bid|tid|tds|qid|qds|sos|hs|after\s*food|before\s*food|empty\s*stomach)\b', caseSensitive: false),
+    RegExp(r'\b\d+(?:\.\d+)?\s*(?:mg|mcg|gm|ml|iu)\b', caseSensitive: false),
+    RegExp(r'\b(?:paracetamol|pantocid|amoxicillin|dolo|crocin|sompraz|taxim|aricep|augmentin|cetirizine|azithral|ecosprin|metformin|atorvastatin|telma)\b', caseSensitive: false),
   ];
 
-  /// Classifies whether extracted OCR lines belong to a medical prescription or an unrelated bill/invoice
+  /// Classifies whether extracted OCR lines belong to a medical prescription or an unrelated document/image.
+  /// Enforces positive medical evidence verification — non-medical images are rejected automatically.
   DocumentType classifyDocument(List<String> lines) {
     if (lines.isEmpty) return DocumentType.unrecognizedDocument;
 
     final fullText = lines.join(' ').toLowerCase();
 
-    int billMatches = 0;
-    for (final pattern in _billPatterns) {
+    bool matchesUtility = false;
+    for (final pattern in _utilityBillPatterns) {
       if (pattern.hasMatch(fullText)) {
-        billMatches++;
+        matchesUtility = true;
+        break;
+      }
+    }
+
+    int nonRxMatches = 0;
+    for (final pattern in _nonPrescriptionPatterns) {
+      if (pattern.hasMatch(fullText)) {
+        nonRxMatches++;
       }
     }
 
@@ -107,10 +145,25 @@ class PrescriptionScannerService {
       }
     }
 
-    // If 2 or more strong bill indicators are present and medical indicators are sparse (<= 1),
-    // classify as a non-prescription utility/tax bill
-    if (billMatches >= 2 && prescriptionMatches <= 1) {
-      return DocumentType.utilityOrTaxBill;
+    // Helper to return the specific non-prescription type
+    DocumentType nonPrescriptionResult() =>
+        matchesUtility ? DocumentType.utilityOrTaxBill : DocumentType.nonPrescriptionDocument;
+
+    // 1. Explicit non-prescription indicators (bills, invoices, food menus, retail, logistics, identity)
+    if (nonRxMatches >= 2 && prescriptionMatches <= 1) {
+      return nonPrescriptionResult();
+    }
+
+    // 2. Positive clinical verification: A document MUST contain actual medical evidence
+    // (doctor title, clinic/hospital header, clinical degrees, Rx symbol, dosage notation, or intake directions).
+    // If there is zero medical evidence in the text, it is NOT a prescription!
+    if (prescriptionMatches == 0) {
+      return nonPrescriptionResult();
+    }
+
+    // 3. If both exist, the non-prescription tokens must not overwhelm medical evidence
+    if (nonRxMatches > prescriptionMatches) {
+      return nonPrescriptionResult();
     }
 
     return DocumentType.medicalPrescription;
@@ -203,15 +256,30 @@ class PrescriptionScannerService {
     }
 
     final docType = classifyDocument(extractedLines);
-    if (docType == DocumentType.utilityOrTaxBill) {
-      debugPrint('[PrescriptionScanner] ⚠️ Scanned image detected as non-prescription (utility/tax bill)');
+    if (docType == DocumentType.utilityOrTaxBill || docType == DocumentType.nonPrescriptionDocument) {
+      debugPrint('[PrescriptionScanner] ⚠️ Scanned image detected as non-prescription ($docType)');
+      final isUtility = docType == DocumentType.utilityOrTaxBill;
       return PrescriptionScanResult(
         candidates: const [],
         rawExtractedLines: extractedLines,
-        documentType: DocumentType.utilityOrTaxBill,
+        documentType: docType,
         overallReadabilityScore: 0.0,
         isHandwrittenOrLowReadability: true,
-        rejectionReason: 'The scanned document appears to be a utility, electricity, or tax bill, not a doctor\'s prescription. Please scan a valid medical prescription.',
+        rejectionReason: isUtility
+            ? 'The scanned document appears to be a utility, electricity, or tax bill, not a doctor\'s prescription. Please scan a valid medical prescription.'
+            : 'The scanned photo does not appear to be a doctor\'s prescription or hospital OPD slip. Please ensure a valid medical prescription is in frame.',
+      );
+    }
+
+    if (docType == DocumentType.unrecognizedDocument || extractedLines.isEmpty) {
+      debugPrint('[PrescriptionScanner] ⚠️ Scanned image has no readable text');
+      return PrescriptionScanResult(
+        candidates: const [],
+        rawExtractedLines: extractedLines,
+        documentType: DocumentType.unrecognizedDocument,
+        overallReadabilityScore: 0.0,
+        isHandwrittenOrLowReadability: true,
+        rejectionReason: 'No readable text was found in the image. Please take a clearer photo in good lighting.',
       );
     }
 
@@ -422,10 +490,6 @@ class PrescriptionScannerService {
     }
     // Contains dosage frequency
     if (RegExp(r'(?:[012]-[012]-[012]|\b(?:od|bd|tid|tds|qid|sos|hs)\b|days?)').hasMatch(lower)) {
-      return true;
-    }
-    // Starts with list numbering (e.g. "1.", "2)")
-    if (RegExp(r'^\s*\d+[\.)]').hasMatch(rawLine)) {
       return true;
     }
     return false;

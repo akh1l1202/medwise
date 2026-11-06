@@ -256,6 +256,88 @@ void main() {
       expect(docType, equals(DocumentType.utilityOrTaxBill));
     });
 
+    test('Rejects restaurant and dining bills as non-prescription documents', () {
+      final restaurantLines = [
+        'THE SPICE ROUTE RESTAURANT',
+        'Order No: 412 Table No: 8',
+        'Server: Mahesh Waiter',
+        '1 Paneer Tikka Masala 320.00',
+        '2 Butter Naan 90.00',
+        '1 Fresh Lime Soda 60.00',
+        'Subtotal: 470.00',
+        'CGST 2.5%: 11.75 SGST 2.5%: 11.75',
+        'Total Amount Payable: Rs. 493.50',
+        'Thank you for dining with us!',
+      ];
+
+      final docType = service.classifyDocument(restaurantLines);
+      expect(docType, equals(DocumentType.nonPrescriptionDocument));
+    });
+
+    test('Rejects e-commerce courier and shipping slips (Amazon/Flipkart)', () {
+      final courierLines = [
+        'Amazon Seller Services Pvt Ltd',
+        'Ship To: Akhil Tyagi',
+        'Tracking No: 15492817291',
+        'AWB No: DLHVY99182',
+        'Courier: Delhivery Surface Express',
+        'Consignee Copy - Do not discard',
+        'Order No: 408-1928471-2918471',
+        'Item: Wireless Mouse Ergonomic 1 Qty',
+        'Return policy: 7 days replacement',
+      ];
+
+      final docType = service.classifyDocument(courierLines);
+      expect(docType, equals(DocumentType.nonPrescriptionDocument));
+    });
+
+    test('Rejects supermarket and grocery receipts (D-Mart/Reliance Retail)', () {
+      final groceryLines = [
+        'D-Mart Supermarket - Avenue Supermarts Ltd',
+        'Thane West Store #402',
+        'Retail Invoice / Cash Memo',
+        'GSTIN: 27AABCA1234F1Z5',
+        '1. Fortune Sunlite Sunflower Oil 1L 145.00',
+        '2. Aashirvaad Shudh Chakki Atta 5kg 240.00',
+        '3. Tata Salt 1kg 28.00',
+        'Total Items: 3',
+        'Subtotal: 413.00',
+        'Payment Mode: UPI Scan',
+      ];
+
+      final docType = service.classifyDocument(groceryLines);
+      expect(docType, equals(DocumentType.nonPrescriptionDocument));
+    });
+
+    test('Rejects generic non-medical documents and book pages (zero medical evidence)', () {
+      final bookLines = [
+        'Chapter 3: Modern Architectural Patterns',
+        'Software engineering requires separation of concerns.',
+        'We examine domain models, repository interfaces, and data sources.',
+        'Each component must communicate through well-defined contracts.',
+        'Published by Technical University Press 2024',
+      ];
+
+      final docType = service.classifyDocument(bookLines);
+      expect(docType, equals(DocumentType.nonPrescriptionDocument));
+    });
+
+    test('Rejects official identity documents (Aadhaar, PAN, Driving License)', () {
+      final idLines = [
+        'Government of India',
+        'Unique Identification Authority of India',
+        'Aadhaar Card',
+        'Name: Akhil Tyagi',
+        'DOB: 15/08/2000',
+        'Gender: MALE',
+        '1234 5678 9012',
+        'Help line: 1947',
+      ];
+
+      final docType = service.classifyDocument(idLines);
+      expect(docType, equals(DocumentType.nonPrescriptionDocument));
+    });
+
     test('Classifies genuine clinic and hospital prescriptions correctly', () {
       final realPrescriptionLines = [
         'Criti-Care ICCU, MULTISPECIALITY HOSPITAL & TRAUMA CENTRE',
