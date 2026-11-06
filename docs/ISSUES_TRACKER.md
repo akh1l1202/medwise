@@ -14,7 +14,7 @@
 | **2** | Overall UI visual overhaul & polish (elevate from generic to premium healthcare aesthetic) | 🟢 **Completed** | UI / Design System |
 | **3** | Fix pixel overflow on 2:00 AM Quick Finder dialog | 🟢 **Completed** | Bug / Responsive UI |
 | **4** | Remove "Demo Data" button and static seed stash | 🟢 **Completed** | Cleanup / Redundant Code |
-| **5** | Remove assumed 10-tab quantity selector from Chemist Counter buy page (handle syrups, drops, liquids) | ⚪ Pending User Gate | UX / Domain Logic |
+| **5** | Remove assumed 10-tab quantity selector from Chemist Counter buy page (handle syrups, drops, liquids) | 🟢 **Completed** | UX / Domain Logic |
 | **6** | Fix bottom pixel overflow when tapping search bar under "Enter Prescribed Medicine" | ⚪ Pending User Gate | Bug / Keyboard Avoidance |
 | **7** | Remove duplicate "Scan Slip" button on Chemist Counter (currently in top-right AppBar and above search bar) | ⚪ Pending User Gate | UI / Redundant Action |
 | **8** | Fix excessive empty whitespace in bottom sheet modal on Scan Slip (dynamically wrap content to ~50% height) | ⚪ Pending User Gate | UI / BottomSheet UX |
@@ -125,6 +125,34 @@
   - `flutter analyze`: **0 warnings / 0 errors**.
   - `flutter test`: **All 42 unit and widget tests pass**.
   - **Deployed to device:** Compiled debug APK and streamed installation to connected phone (`CPH2613`). The AppBar and empty cabinet state are now completely free of demo buttons. Fully resolved.
+
+---
+
+### Issue 5: Remove Assumed 10-Tab Quantity Selector & Introduce Form-Aware Units
+* **Status:** 🟢 **Completed & Deployed**
+* **Root Cause:** The Chemist Counter search header placed a global `[5, 10, 15, 20, 30] tabs` dropdown right next to the search bar. This had two major flaws:
+  1. It falsely assumed every medicine is an oral tablet/capsule sold in strips of 10. When purchasing liquid cough syrups, eye drops, ointments, or sprays, defaulting to "10 tabs" is domain-illogical (users do not buy "10 bottles" or "10 tabs of eye drops").
+  2. The dropdown occupied significant horizontal width, compressing the search input field and causing horizontal text clipping and keyboard insets layout pressure.
+* **Changes Made:**
+  1. **Removed Global Dropdown Selector:** Completely removed the `DropdownButton<int>` from the search bar row in [`ChemistCounterScreen`](../lib/features/chemist_counter/presentation/screens/chemist_counter_screen.dart). The search bar now spans the full width of the container.
+  2. **Form-Aware Initial Quantity Logic:** In `_addPrescribedMedicine()`, dynamically inspect `record.dosageForm`:
+     - Liquids, syrups, suspensions, drops, ointments, gels, sprays, and inhalers default to `quantityPrescribed = 1` unit (1 bottle/tube).
+     - Oral solid dosage forms (tablets, capsules) default to `quantityPrescribed = 10` (1 standard strip).
+  3. **Cart Item Stepper:** Added an interactive `+ / -` stepper on each cart card. Tapping `+` or `-` updates the specific item quantity with form-aware step sizes (1 for bottles/tubes, 5 for tablets).
+  4. **Domain-Accurate Unit Formatting ([`chemist_cart_item.dart`](../lib/features/chemist_counter/data/models/chemist_cart_item.dart) & [`smart_buy_result.dart`](../lib/features/chemist_counter/data/models/smart_buy_result.dart)):**
+     - Added `isLiquidOrUnitItem` and `unitLabel` getters.
+     - Recommendation cards now dynamically display proper units:
+       - Tablets: `"You already have 8 tablets ... Buy only 2 tablets."`
+       - Syrups/Liquids: `"You already have 1 bottle ... Buy only 1 bottle."`
+       - Ointments/Gels: `"You already have 1 tube ... Buy only 1 tube."`
+  5. Added automated unit tests in [`test/domain_services_test.dart`](../test/domain_services_test.dart) verifying unit label formatting and equivalence evaluation for liquid syrups.
+* **Redundant Code Removed:**
+  - Removed `_prescribedQuantity` global dropdown state from `_ChemistCounterScreenState`.
+  - Removed hardcoded `"tabs"` string concatenations across evaluation callouts.
+* **Resolution & Testing Status:**
+  - `flutter analyze`: **0 warnings / 0 errors**.
+  - `flutter test`: **All 43 unit and widget tests pass**.
+  - **Deployed to device:** Compiled debug APK and streamed installation to connected phone (`CPH2613`). Verified that searching a syrup automatically adds 1 bottle with a responsive stepper, and search input spans full width. Fully resolved.
 
 ---
 
