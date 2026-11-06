@@ -13,7 +13,7 @@
 | **1** | Remove "Estimated Pharmacy Savings" ticker and related UI | 🟢 **Completed** | UI Simplification / Feature Removal |
 | **2** | Overall UI visual overhaul & polish (elevate from generic to premium healthcare aesthetic) | 🟢 **Completed** | UI / Design System |
 | **3** | Fix pixel overflow on 2:00 AM Quick Finder dialog | 🟢 **Completed** | Bug / Responsive UI |
-| **4** | Remove "Demo Data" button and static seed stash | ⚪ Pending User Gate | Cleanup / Redundant Code |
+| **4** | Remove "Demo Data" button and static seed stash | 🟢 **Completed** | Cleanup / Redundant Code |
 | **5** | Remove assumed 10-tab quantity selector from Chemist Counter buy page (handle syrups, drops, liquids) | ⚪ Pending User Gate | UX / Domain Logic |
 | **6** | Fix bottom pixel overflow when tapping search bar under "Enter Prescribed Medicine" | ⚪ Pending User Gate | Bug / Keyboard Avoidance |
 | **7** | Remove duplicate "Scan Slip" button on Chemist Counter (currently in top-right AppBar and above search bar) | ⚪ Pending User Gate | UI / Redundant Action |
@@ -107,6 +107,24 @@
   - `flutter analyze`: **0 warnings / 0 errors**.
   - `flutter test`: **All 42 unit and widget tests pass**.
   - **Deployed to device:** Compiled debug APK and streamed installation to connected phone (`CPH2613`). Verified dialog opens smoothly on mobile without keyboard clipping or pixel overflow. Fully resolved.
+
+---
+
+### Issue 4: Remove "Demo Data" Button & Static Seed Stash
+* **Status:** 🟢 **Completed & Deployed**
+* **Root Cause:** In earlier development iterations, a "Demo Data" button and a dedicated seeder class (`DemoDataSeeder`) were introduced to populate 5 hardcoded mock medicines (Crocin 650, Pantocid 40, Refresh Tears, Augmentin 625 Duo, and Ecosprin 75) into the SQLite cabinet database. Now that manual input, FTS5 catalog search, and packaging OCR pipelines are fully implemented and operational, the demo button is obsolete, creates developer-mode clutter in the AppBar and empty state, and could accidentally overwrite or inject duplicate mock items into real household inventories.
+* **Changes Made:**
+  1. Removed the "Demo" action button from `AppBar.actions` in [`CabinetScreen`](../lib/features/cabinet/presentation/screens/cabinet_screen.dart).
+  2. In the empty state view of `CabinetScreen`, replaced the "Preload Sample Demo Stash" button with an "Add Your First Medicine" action button that navigates directly to [`AddMedicineScreen`](../lib/features/cabinet/presentation/screens/add_medicine_screen.dart).
+  3. Deleted the `_seedDemoData()` method and removed the unused `CabinetRepository` import from `cabinet_screen.dart`.
+  4. Completely deleted the static seed file [`lib/core/utils/demo_data_seeder.dart`](../lib/core/utils/demo_data_seeder.dart) and its 5 hardcoded mock medicine structures and mock schedules.
+* **Redundant Code Removed:**
+  - Deleted entire `lib/core/utils/demo_data_seeder.dart` (118 lines of static mock data and hardcoded seed routines).
+  - Removed 54 lines of demo button UI, callback methods, and unused repository imports from `cabinet_screen.dart`.
+* **Resolution & Testing Status:**
+  - `flutter analyze`: **0 warnings / 0 errors**.
+  - `flutter test`: **All 42 unit and widget tests pass**.
+  - **Deployed to device:** Compiled debug APK and streamed installation to connected phone (`CPH2613`). The AppBar and empty cabinet state are now completely free of demo buttons. Fully resolved.
 
 ---
 
