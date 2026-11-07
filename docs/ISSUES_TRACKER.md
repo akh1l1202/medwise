@@ -16,7 +16,7 @@
 | **4** | Remove "Demo Data" button and static seed stash | 🟢 **Completed** | Cleanup / Redundant Code |
 | **5** | Remove assumed 10-tab quantity selector from Chemist Counter buy page (handle syrups, drops, liquids) | 🟢 **Completed** | UX / Domain Logic |
 | **6** | Fix bottom pixel overflow when tapping search bar under "Enter Prescribed Medicine" | 🟢 **Completed** | Bug / Keyboard Avoidance |
-| **7** | Remove duplicate "Scan Slip" button on Chemist Counter (currently in top-right AppBar and above search bar) | ⚪ Pending User Gate | UI / Redundant Action |
+| **7** | Remove duplicate "Scan Slip" button on Chemist Counter (currently in top-right AppBar and above search bar) | 🟢 **Completed** | UI / Redundant Action |
 | **8** | Fix excessive empty whitespace in bottom sheet modal on Scan Slip (dynamically wrap content to ~50% height) | ⚪ Pending User Gate | UI / BottomSheet UX |
 | **9** | Add anti-clockwise 90° rotation and style both rotate buttons in Deep Teal on free perspective crop screen | ⚪ Pending User Gate | Feature / Crop UX |
 | **10** | Enhanced prescription intake parsing (number of days, dosage frequency `1-0-1`, `1-1-1`, `0-0-1`, timing before/after meals) | ⚪ Pending User Gate | Domain Logic / NLP Parser |
@@ -179,6 +179,25 @@
   - `dart analyze`: **0 warnings / 0 errors**.
   - `flutter test`: **All 44 unit and widget tests pass (including new `chemist_counter_overflow_test.dart`)**.
   - **Deployed to device:** Compiled debug APK and streamed installation to physical phone (`CPH2613`). The app launches cleanly and tapping the search bar opens the keyboard smoothly with 0 pixel overflow warnings. Fully resolved.
+
+---
+
+### Issue 7: Remove Duplicate "Scan Slip" Button on Chemist Counter
+* **Status:** 🟢 **Completed & Deployed**
+* **Root Cause:** In [`ChemistCounterScreen`](../lib/features/chemist_counter/presentation/screens/chemist_counter_screen.dart), there were two identical action buttons invoking `_showPrescriptionScanModal()`:
+  1. An unlabelled `IconButton(icon: Icon(Icons.document_scanner_outlined))` located in the top-right `AppBar.actions`.
+  2. A dedicated contextual emerald pill button (`Icon + 'Scan Slip'`) located directly next to *"Enter Prescribed Medicine"* above the search input bar.
+  Having both buttons created visual redundancy, cognitive clutter, and wasted AppBar action space.
+* **Changes Made:**
+  1. Removed the redundant `IconButton(icon: Icon(Icons.document_scanner_outlined))` from `AppBar.actions` in [`chemist_counter_screen.dart`](../lib/features/chemist_counter/presentation/screens/chemist_counter_screen.dart).
+  2. Preserved the prominent, contextual, and labelled emerald pill button (`Scan Slip`) directly beside the prescription search input, where users make the immediate decision whether to type or scan.
+  3. Added an automated widget test in [`test/chemist_counter_overflow_test.dart`](../test/chemist_counter_overflow_test.dart) verifying that exactly one "Scan Slip" trigger exists on the screen and no document scanner icon button resides in the AppBar.
+* **Redundant Code Removed:**
+  - Removed the duplicate `IconButton` action and its tooltip from `AppBar.actions`.
+* **Resolution & Testing Status:**
+  - `dart analyze`: **0 warnings / 0 errors**.
+  - `flutter test`: **All 45 unit and widget tests pass**.
+  - **Deployed to device:** Compiled debug APK and streamed installation to physical phone (`CPH2613`). Verified that the AppBar top-right is clean and only the contextual "Scan Slip" pill button is displayed above the search field. Fully resolved.
 
 ---
 
