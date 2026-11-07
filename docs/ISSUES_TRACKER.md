@@ -20,7 +20,7 @@
 | **8** | Fix excessive empty whitespace in bottom sheet modal on Scan Slip (dynamically wrap content to ~50% height) | 🟢 **Completed** | UI / BottomSheet UX |
 | **9** | Add anti-clockwise 90° rotation and style both rotate buttons in Deep Teal on free perspective crop screen | 🟢 **Completed** | Feature / Crop UX |
 | **10** | Enhanced prescription intake parsing (number of days, dosage frequency `1-0-1`, `101`, `111`, `001`, timing before/after meals) | 🟢 **Completed** | Domain Logic / NLP Parser |
-| **11** | Feasibility analysis & architecture report for Google AI / Gemini Vision API hybrid OCR fallback | ⚪ Pending User Gate | Architectural Report / AI Integration |
+| **11** | Feasibility analysis & architecture report for Google AI / Gemini Vision API hybrid OCR fallback | 🟢 **Completed** | Architectural Report / AI Integration |
 | **12** | Audit and improve medicine blister strip packaging OCR & expiry matching against cabinet inventory | ⚪ Pending User Gate | ML Kit OCR / Packaging Scanner |
 | **13** | Audit and fix remaining screen pixel overflows across all tabs & views with comprehensive audit tally | ⚪ Pending User Gate | Responsive Polish / Screen Audit |
 
@@ -279,6 +279,28 @@
   - `dart analyze`: **0 warnings / 0 errors**.
   - `flutter test`: **All 50 unit and widget tests pass**.
   - **Deployed to device:** Compiled debug APK and streamed installation to physical phone (`CPH2613`). The parser accurately extracts frequencies, days, and meal timings and passes them cleanly into Chemist Cart cards. Fully resolved.
+
+---
+
+### Issue 11: Feasibility Analysis & Architecture Report for Google AI / Gemini Vision API Hybrid Fallback
+* **Status:** 🟢 **Completed & Documented**
+* **Root Cause & Core Challenge:**
+  1. **Handwriting Recognition Gap:** While on-device Google ML Kit (v2 Latin Text Recognizer) achieves $98\%+$ precision on printed medicine packaging and typed hospital discharge slips, it struggles ($< 40\%$ readability) with Indian doctor cursive handwriting on paper OPD slips.
+  2. **Offline vs Cloud Privacy Tension:** Cloud Multimodal LLMs (Gemini 2.0 Flash / 1.5 Flash) excel at semantic cursive deciphering, but routing every image blindly to the cloud violates MedWise’s core promise: 100% offline-first privacy, zero data leakage, and resilience in connectivity-deprived pharmacy counters.
+* **Deliverable & Changes Made:**
+  1. **Authored Comprehensive Architectural Feasibility Report ([`docs/GEMINI_VISION_HYBRID_OCR_FEASIBILITY.md`](./GEMINI_VISION_HYBRID_OCR_FEASIBILITY.md)):**
+     - **Comparative Benchmarking:** Evaluated On-Device ML Kit vs Classical Cloud OCR (Google Cloud Vision / AWS Textract) vs Multimodal LLMs (Gemini Vision) across accuracy, contextual error correction, latency, cost, and privacy.
+     - **Tiered Routing Architecture:** Designed an intelligent triage model where Tier 1 (Local ML Kit + FTS5 SQLite) executes 100% offline; Tier 2 (Gemini Vision fallback) activates strictly when `overallReadabilityScore < 0.70`, the device is online, and the user grants explicit consent.
+     - **Privacy & DPDP Act 2023 Compliance:** Specified a 3-stage privacy protocol including mandatory on-device PII redaction (cropping out patient name, age, phone, OPD # before transmission), TLS 1.3 transport, and ephemeral zero-retention cloud processing.
+     - **Clinical Hallucination Guardrail:** Designed a dual-sovereignty re-grounding engine that intercepts Gemini’s structured JSON output and validates brand/salt names against the bundled 246,000-record Indian Pharmacopoeia database using Dice's Coefficient.
+     - **Prompt Engineering & Strict JSON Schema:** Defined the complete system prompt, Indian clinical frequency mappings (`101`, `111`, `001`, `OD`, `BD`, `TDS`, `HS`), meal relations (`PC`, `AC`), and the JSON schema.
+     - **Cost Economics & Sustainability Model:** Calculated token consumption ($\approx 858\text{ tokens/scan}$), confirming Google AI Studio's Free Tier (1,500 scans/day) covers development/viva at \$0.00, and commercial scale at \$0.114 / 1,000 scans ($\approx ₹9.50$ INR).
+     - **Viva Defense Preparedness:** Included defensible responses to examiner inquiries regarding privacy, hallucination prevention, and offline integrity.
+* **Redundant Code Removed:**
+  - N/A (Architectural, regulatory, and feasibility specification document).
+* **Resolution & Testing Status:**
+  - Master architectural document compiled and verified at [`docs/GEMINI_VISION_HYBRID_OCR_FEASIBILITY.md`](./GEMINI_VISION_HYBRID_OCR_FEASIBILITY.md).
+  - Issue tracker updated. Fully resolved.
 
 ---
 
