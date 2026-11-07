@@ -144,11 +144,6 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
         appBar: AppBar(
           title: const Text('Chemist Counter "Smart Buy"'),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.document_scanner_outlined),
-              tooltip: 'Scan Prescription Slip',
-              onPressed: _showPrescriptionScanModal,
-            ),
             if (cart.isNotEmpty)
               IconButton(
                 icon: const Icon(Icons.delete_sweep_outlined),

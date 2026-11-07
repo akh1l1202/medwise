@@ -37,4 +37,29 @@ void main() {
     // Verify no RenderFlex overflow occurred
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('ChemistCounterScreen has exactly one contextual Scan Slip button and no duplicate in AppBar', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const ChemistCounterScreen(),
+        ),
+      ),
+    );
+
+    // Verify exactly one "Scan Slip" widget exists
+    expect(find.text('Scan Slip'), findsOneWidget);
+
+    // Verify the AppBar actions does NOT contain a document scanner button
+    final appBar = find.byType(AppBar);
+    expect(appBar, findsOneWidget);
+    expect(
+      find.descendant(
+        of: appBar,
+        matching: find.byIcon(Icons.document_scanner_outlined),
+      ),
+      findsNothing,
+    );
+  });
 }
