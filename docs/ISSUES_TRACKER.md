@@ -233,17 +233,17 @@
      - Added `IconButton(icon: Icon(Icons.rotate_left_rounded, size: 24, color: AppColors.primary), tooltip: 'Rotate 90° Anti-Clockwise', onPressed: _rotateCounterClockwise)`.
      - Preserved `IconButton(icon: Icon(Icons.rotate_right_rounded, size: 24, color: AppColors.primary), tooltip: 'Rotate 90° Clockwise', onPressed: _rotateClockwise)`.
      - Both rotate buttons are now prominently styled in brand Deep Teal (`AppColors.primary`).
-  3. **Dedicated Reset Button:** Maintained a separate `Icons.restart_alt_rounded` button (`tooltip: 'Reset Corners'`) for resetting the 4 polygon handles.
-  4. **Overflow Protection:** Wrapped the AppBar title texts in `TextOverflow.ellipsis` and `maxLines: 1` to guarantee zero horizontal crowding or overflow on compact viewports with 3 action buttons.
+  3. **Removed Redundant Third Rightmost Button:** Removed the third `Icons.restart_alt_rounded` icon from the AppBar actions, leaving exclusively the dual green rotation controls (↺ and ↻) in the top-right.
+  4. **Overflow Protection:** Wrapped the AppBar title texts in `TextOverflow.ellipsis` and `maxLines: 1` to guarantee zero horizontal crowding or overflow on compact viewports.
   5. **Automated Unit & Widget Tests:**
      - Added unit test in [`test/image_cropper_test.dart`](../test/image_cropper_test.dart) verifying $270^\circ$ (anti-clockwise $90^\circ$) bitmap transformation and dimension swapping.
-     - Created [`test/prescription_crop_screen_test.dart`](../test/prescription_crop_screen_test.dart) testing both rotate buttons exist, are colored `AppColors.primary`, and execute rotation without exceptions.
+     - Created [`test/prescription_crop_screen_test.dart`](../test/prescription_crop_screen_test.dart) testing both rotate buttons exist, are colored `AppColors.primary`, and that no extra third button exists.
 * **Redundant Code Removed:**
-  - Removed misleading single-direction rotation restriction.
+  - Removed the unreferenced `_resetCrop()` declaration and the third `Icons.restart_alt_rounded` button from `prescription_crop_screen.dart`.
 * **Resolution & Testing Status:**
   - `dart analyze`: **0 warnings / 0 errors**.
   - `flutter test`: **All 48 unit and widget tests pass**.
-  - **Deployed to device:** Compiled debug APK and streamed installation to physical phone (`CPH2613`). Verified that both ↺ and ↻ buttons are styled in emerald teal and rotate the image by $90^\circ$ anti-clockwise and clockwise respectively. Fully resolved.
+  - **Deployed to device:** Compiled debug APK and streamed installation to physical phone (`CPH2613`). The top-right now displays only the two green rotation controls (↺ Anti-Clockwise and ↻ Clockwise) with zero third icon clutter. Fully resolved.
 
 ---
 
