@@ -15,7 +15,7 @@
 | **3** | Fix pixel overflow on 2:00 AM Quick Finder dialog | 🟢 **Completed** | Bug / Responsive UI |
 | **4** | Remove "Demo Data" button and static seed stash | 🟢 **Completed** | Cleanup / Redundant Code |
 | **5** | Remove assumed 10-tab quantity selector from Chemist Counter buy page (handle syrups, drops, liquids) | 🟢 **Completed** | UX / Domain Logic |
-| **6** | Fix bottom pixel overflow when tapping search bar under "Enter Prescribed Medicine" | ⚪ Pending User Gate | Bug / Keyboard Avoidance |
+| **6** | Fix bottom pixel overflow when tapping search bar under "Enter Prescribed Medicine" | 🟢 **Completed** | Bug / Keyboard Avoidance |
 | **7** | Remove duplicate "Scan Slip" button on Chemist Counter (currently in top-right AppBar and above search bar) | ⚪ Pending User Gate | UI / Redundant Action |
 | **8** | Fix excessive empty whitespace in bottom sheet modal on Scan Slip (dynamically wrap content to ~50% height) | ⚪ Pending User Gate | UI / BottomSheet UX |
 | **9** | Add anti-clockwise 90° rotation and style both rotate buttons in Deep Teal on free perspective crop screen | ⚪ Pending User Gate | Feature / Crop UX |
@@ -153,6 +153,32 @@
   - `flutter analyze`: **0 warnings / 0 errors**.
   - `flutter test`: **All 43 unit and widget tests pass**.
   - **Deployed to device:** Compiled debug APK and streamed installation to connected phone (`CPH2613`). Verified that searching a syrup automatically adds 1 bottle with a responsive stepper, and search input spans full width. Fully resolved.
+
+---
+
+### Issue 6: Fix Bottom Pixel Overflow When Tapping Search Bar Under "Enter Prescribed Medicine"
+* **Status:** 🟢 **Completed & Deployed**
+* **Root Cause:**
+  1. **Unscrollable Empty Viewport:** In [`ChemistCounterScreen`](../lib/features/chemist_counter/presentation/screens/chemist_counter_screen.dart), when the prescription cart was empty, the view rendered an unscrollable `Center` widget with fixed vertical padding and fixed-height icons/texts totaling $\approx 246\text{px}$.
+  2. **Rigid Autocomplete Card in Fixed Header:** When typing in the search bar, the matching medicines suggestions card was placed inside the non-scrollable header `Column` above the `Expanded` cart list, occupying an additional $\approx 240\text{px}$.
+  3. **Soft Keyboard Inset Pressure:** When the user tapped into `TextField`, the Android soft keyboard occupied $300-350\text{dp}$ of vertical screen real estate. On standard compact devices ($640\text{dp}$ total height), the visible viewport shrank to only $\approx 250\text{dp}$. Forcing the $120\text{dp}$ search bar container plus either the rigid $246\text{dp}$ empty state or the fixed suggestions box into $250\text{dp}$ caused an immediate bottom `RenderFlex overflowed by XX pixels`.
+  4. **Unexpanded Header Row:** The header title `Text('Enter Prescribed Medicine')` and the `Scan Slip` pill button sat in an unconstrained `Row(mainAxisAlignment: MainAxisAlignment.spaceBetween)`. On narrow viewports or under larger text accessibility scalings, this caused horizontal line pressure.
+* **Changes Made:**
+  1. **Scrollable Empty State Container:** Wrapped the empty cart column in `SingleChildScrollView(physics: const BouncingScrollPhysics(), padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16))` so it fluidly shrinks or scrolls on compact viewports without clipping.
+  2. **Relocated Suggestions to Expanded Region:** Moved the autocomplete suggestions list out of the rigid fixed header `Column` and placed it into the `Expanded` region of the body. When suggestions are active, they take full advantage of the remaining viewport with an internal `ListView.separated` and a top header with item count and a one-tap "Dismiss" button.
+  3. **Header Flexibility & Keyboard Dismissal:**
+     - Wrapped `'Enter Prescribed Medicine'` in `Expanded` with `TextOverflow.ellipsis`.
+     - Wrapped the entire screen in `GestureDetector(onTap: () => FocusScope.of(context).unfocus(), behavior: HitTestBehavior.translucent)` so tapping anywhere outside dismisses the soft keyboard immediately.
+     - Added an inline clear button (`Icons.clear_rounded`) to the `TextField` suffix icon when the search query is non-empty.
+  4. **Conditional Bottom Action Button:** Added `final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;` and conditionally hid the bottom *"Add Purchased to Cabinet"* bar while the keyboard is active, preserving all remaining viewport for search results.
+  5. **Automated Overflow Test Suite:** Created [`test/chemist_counter_overflow_test.dart`](../test/chemist_counter_overflow_test.dart) with a compact $360\times640$ viewport and simulated $350\text{dp}$ keyboard bottom insets, verifying zero RenderFlex overflows when focusing the search input.
+* **Redundant Code Removed:**
+  - Removed duplicate fixed `Card` container for suggestions that was cluttering the top header column.
+  - Eliminated rigid non-scrollable layout constraints in the empty prescription cart state.
+* **Resolution & Testing Status:**
+  - `dart analyze`: **0 warnings / 0 errors**.
+  - `flutter test`: **All 44 unit and widget tests pass (including new `chemist_counter_overflow_test.dart`)**.
+  - **Deployed to device:** Compiled debug APK and streamed installation to physical phone (`CPH2613`). The app launches cleanly and tapping the search bar opens the keyboard smoothly with 0 pixel overflow warnings. Fully resolved.
 
 ---
 
