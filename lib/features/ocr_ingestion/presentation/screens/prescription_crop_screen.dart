@@ -103,12 +103,6 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
     });
   }
 
-  void _resetCrop() {
-    setState(() {
-      _quad = null;
-    });
-  }
-
   void _updateLayout(Size viewportSize) {
     if (_loadedImage == null) return;
     if (viewportSize.width <= 0 || viewportSize.height <= 0) return;
@@ -342,11 +336,6 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
             icon: const Icon(Icons.rotate_right_rounded, size: 24, color: AppColors.primary),
             tooltip: 'Rotate 90° Clockwise',
             onPressed: _isLoading || _isProcessing ? null : _rotateClockwise,
-          ),
-          IconButton(
-            icon: const Icon(Icons.restart_alt_rounded, size: 22, color: AppColors.textSecondary),
-            tooltip: 'Reset Corners',
-            onPressed: _isLoading || _isProcessing ? null : _resetCrop,
           ),
         ],
       ),

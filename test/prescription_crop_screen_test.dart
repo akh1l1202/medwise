@@ -57,14 +57,14 @@ void main() {
     // Verify header title
     expect(find.text('Free Perspective Crop'), findsOneWidget);
 
-    // Verify both anti-clockwise and clockwise rotate buttons exist
+    // Verify both anti-clockwise and clockwise rotate buttons exist and no third button
     final antiClockwiseFinder = find.byIcon(Icons.rotate_left_rounded);
     final clockwiseFinder = find.byIcon(Icons.rotate_right_rounded);
     final resetFinder = find.byIcon(Icons.restart_alt_rounded);
 
     expect(antiClockwiseFinder, findsOneWidget);
     expect(clockwiseFinder, findsOneWidget);
-    expect(resetFinder, findsOneWidget);
+    expect(resetFinder, findsNothing);
 
     // Verify both rotate icons are colored Deep Emerald Teal (AppColors.primary)
     final Icon antiClockwiseIcon = tester.widget(antiClockwiseFinder);
@@ -87,12 +87,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     // Verify no exception occurred
-    expect(tester.takeException(), isNull);
-
-    // Tap reset corners button
-    await tester.tap(resetFinder);
-    await tester.pump(const Duration(milliseconds: 100));
-
     expect(tester.takeException(), isNull);
   });
 }
