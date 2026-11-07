@@ -369,9 +369,123 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
     );
   }
 
+  Widget _buildDragHandle() {
+    return Center(
+      child: Container(
+        width: 40,
+        height: 4,
+        decoration: BoxDecoration(
+          color: AppColors.divider,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModalHeader(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.primarySurface,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(Icons.receipt_long, color: AppColors.primary, size: 24),
+        ),
+        const SizedBox(width: 12),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Scan Prescription Slip',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'Parses computerized clinic & hospital slips on-device',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInitialUploadPrompt() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: const BoxDecoration(
+              color: AppColors.primarySurface,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.document_scanner_outlined, size: 32, color: AppColors.primary),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Snap a photo of the printed prescription',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Best results on printed doctor slips (Apollo, Practo, Max, OPD receipts).',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.3),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.camera_alt_rounded, size: 18),
+                  label: const Text('Camera', style: TextStyle(fontWeight: FontWeight.bold)),
+                  onPressed: () => _pickImage(ImageSource.camera),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.photo_library_outlined, size: 18),
+                  label: const Text('Gallery', style: TextStyle(fontWeight: FontWeight.bold)),
+                  onPressed: () => _pickImage(ImageSource.gallery),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectedCount = _candidates.where((c) => c.isSelected).length;
+    final isInitialState = _imagePath == null;
 
     return Container(
       decoration: const BoxDecoration(
@@ -379,109 +493,37 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.only(
-        top: 20,
-        left: 20,
-        right: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        top: 16,
+        left: 16,
+        right: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.88,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.divider,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Modal Header
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primarySurface,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.receipt_long, color: AppColors.primary, size: 24),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Scan Prescription Slip',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      'Parses computerized clinic & hospital slips on-device',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Capture / Pick Image Buttons if no image yet
-          if (_imagePath == null) ...[
-            Container(
-              padding: const EdgeInsets.all(24),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
+      child: isInitialState
+          ? SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.document_scanner_outlined, size: 48, color: AppColors.primary),
+                  _buildDragHandle(),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Snap a photo of the printed prescription',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Best results on printed/computerized doctor slips (Apollo, Practo, Max, OPD slips).',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.camera_alt),
-                        label: const Text('Camera'),
-                        onPressed: () => _pickImage(ImageSource.camera),
-                      ),
-                      const SizedBox(width: 12),
-                      OutlinedButton.icon(
-                        icon: const Icon(Icons.photo_library),
-                        label: const Text('Gallery'),
-                        onPressed: () => _pickImage(ImageSource.gallery),
-                      ),
-                    ],
-                  ),
+                  _buildModalHeader(context),
+                  const SizedBox(height: 14),
+                  _buildInitialUploadPrompt(),
                 ],
               ),
-            ),
-          ] else if (_isProcessing) ...[
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDragHandle(),
+                const SizedBox(height: 12),
+                _buildModalHeader(context),
+                const SizedBox(height: 14),
+                if (_isProcessing) ...[
             const Expanded(
               child: Center(
                 child: Column(
