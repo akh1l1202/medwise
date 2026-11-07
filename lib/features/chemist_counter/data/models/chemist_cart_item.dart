@@ -6,6 +6,7 @@ class ChemistCartItem {
   final int quantityPrescribed;
   final String dosageForm;
   final double estimatedPricePerUnit;
+  final String? dosageInstruction;
 
   const ChemistCartItem({
     required this.id,
@@ -15,6 +16,7 @@ class ChemistCartItem {
     required this.quantityPrescribed,
     this.dosageForm = 'Tablet',
     this.estimatedPricePerUnit = 3.50, // Average Indian OTC/Rx tablet price in ₹
+    this.dosageInstruction,
   });
 
   bool get isLiquidOrUnitItem {
@@ -55,6 +57,7 @@ class ChemistCartItem {
     int? quantityPrescribed,
     String? dosageForm,
     double? estimatedPricePerUnit,
+    String? dosageInstruction,
   }) {
     return ChemistCartItem(
       id: id ?? this.id,
@@ -64,6 +67,7 @@ class ChemistCartItem {
       quantityPrescribed: quantityPrescribed ?? this.quantityPrescribed,
       dosageForm: dosageForm ?? this.dosageForm,
       estimatedPricePerUnit: estimatedPricePerUnit ?? this.estimatedPricePerUnit,
+      dosageInstruction: dosageInstruction ?? this.dosageInstruction,
     );
   }
 }

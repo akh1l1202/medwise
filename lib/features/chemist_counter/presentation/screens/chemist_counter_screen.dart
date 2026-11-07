@@ -410,6 +410,34 @@ class _ChemistCounterScreenState extends ConsumerState<ChemistCounterScreen> {
                                                 fontWeight: FontWeight.w500,
                                               ),
                                             ),
+                                            if (eval.cartItem.dosageInstruction != null) ...[
+                                              const SizedBox(height: 5),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.primarySurface,
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(Icons.schedule_rounded, size: 12, color: AppColors.primaryDark),
+                                                    const SizedBox(width: 4),
+                                                    Flexible(
+                                                      child: Text(
+                                                        eval.cartItem.dosageInstruction!,
+                                                        style: const TextStyle(
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: AppColors.primaryDark,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
                                           ],
                                         ),
                                       ),

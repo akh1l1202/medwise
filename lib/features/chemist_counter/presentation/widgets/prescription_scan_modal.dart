@@ -355,6 +355,7 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
           prescribedStrength: item.matchedRecord.strength,
           quantityPrescribed: item.quantity,
           dosageForm: item.matchedRecord.dosageForm,
+          dosageInstruction: item.dosageInstruction,
         ),
       );
     }
@@ -879,14 +880,22 @@ class _PrescriptionScanModalState extends ConsumerState<PrescriptionScanModal> {
                                         decoration: BoxDecoration(
                                           color: AppColors.primarySurface,
                                           borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
                                         ),
-                                        child: Text(
-                                          candidate.dosageInstruction!,
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            color: AppColors.primaryDark,
-                                            fontWeight: FontWeight.w600,
-                                          ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.schedule_rounded, size: 12, color: AppColors.primaryDark),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              candidate.dosageInstruction!,
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                color: AppColors.primaryDark,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                   ],

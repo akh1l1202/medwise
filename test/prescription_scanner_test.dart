@@ -140,6 +140,54 @@ void main() {
       expect(azithral.dosageInstruction, contains('OD for 3 days'));
     });
 
+    test('Parses compact frequencies (101, 111, 001) and meal timing with duration', () async {
+      final slipLines = [
+        '1. Tab Dolo 650 101 x 5 days after food',
+        '2. Pantocid 40 100 before breakfast x 14 days',
+        '3. Azithral 500 001 at night for 3 days',
+      ];
+
+      final candidates = await service.parsePrescriptionLines(slipLines);
+      expect(candidates.length, equals(3));
+
+      // Dolo: 101 -> 1-0-1 (2/day), 5 days -> 10 tabs, after food
+      final dolo = candidates.firstWhere((c) => c.matchedRecord.brandName == 'Dolo 650');
+      expect(dolo.quantity, equals(10));
+      expect(dolo.frequency, equals('1-0-1'));
+      expect(dolo.days, equals(5));
+      expect(dolo.mealTiming, equals('After Food'));
+      expect(dolo.whenTiming, equals('Morning & Night'));
+      expect(dolo.dosageInstruction, contains('1-0-1 for 5 days (Morning & Night) • After Food'));
+
+      // Pantocid: 100 -> 1-0-0 (1/day), 14 days -> 14 tabs, before breakfast / before food
+      final pantocid = candidates.firstWhere((c) => c.matchedRecord.brandName == 'Pantocid 40');
+      expect(pantocid.quantity, equals(14));
+      expect(pantocid.frequency, equals('1-0-0'));
+      expect(pantocid.days, equals(14));
+      expect(pantocid.mealTiming, equals('Before Food'));
+      expect(pantocid.whenTiming, equals('Morning only'));
+
+      // Azithral: 001 -> 0-0-1 (1/day), 3 days -> 3 tabs, at night
+      final azithral = candidates.firstWhere((c) => c.matchedRecord.brandName == 'Azithral 500');
+      expect(azithral.quantity, equals(3));
+      expect(azithral.frequency, equals('0-0-1'));
+      expect(azithral.days, equals(3));
+      expect(azithral.whenTiming, equals('Night only'));
+    });
+
+    test('Extracts liquid syrups with default 1 bottle unit without multiplying days', () async {
+      final syrupLines = [
+        '1. Syp Ascoril LS 5ml TDS x 5 days',
+      ];
+
+      final candidates = await service.parsePrescriptionLines(syrupLines);
+      expect(candidates.length, equals(1));
+      // Syrups should NOT default to 3 * 5 = 15 bottles, but rather 1 bottle
+      expect(candidates.first.quantity, equals(1));
+      expect(candidates.first.frequency, equals('TDS'));
+      expect(candidates.first.days, equals(5));
+    });
+
     test('Merges multi-line split entries (e.g. Line 1: Drug Name, Line 2: Dosage)', () async {
       final splitSlipLines = [
         'Rx',

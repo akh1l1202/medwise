@@ -330,6 +330,10 @@ class PrescriptionScannerService {
             confidenceScore: matchResult.score.clamp(0.0, 1.0),
             quantity: parsedDosage.quantity,
             dosageInstruction: parsedDosage.instruction,
+            frequency: parsedDosage.frequency,
+            whenTiming: parsedDosage.whenTiming,
+            mealTiming: parsedDosage.mealTiming,
+            days: parsedDosage.days,
             isSelected: true,
           ),
         );
@@ -351,6 +355,10 @@ class PrescriptionScannerService {
             confidenceScore: calculatedConfidence,
             quantity: parsedDosage.quantity,
             dosageInstruction: parsedDosage.instruction,
+            frequency: parsedDosage.frequency,
+            whenTiming: parsedDosage.whenTiming,
+            mealTiming: parsedDosage.mealTiming,
+            days: parsedDosage.days,
             // If confidence is low (<50%), do not auto-select; require user review
             isSelected: calculatedConfidence >= 0.50,
           ),
@@ -385,6 +393,10 @@ class PrescriptionScannerService {
         confidenceScore: matchResult.score.clamp(0.0, 1.0),
         quantity: parsedDosage.quantity,
         dosageInstruction: parsedDosage.instruction,
+        frequency: parsedDosage.frequency,
+        whenTiming: parsedDosage.whenTiming,
+        mealTiming: parsedDosage.mealTiming,
+        days: parsedDosage.days,
         isSelected: true,
       );
     }
@@ -405,6 +417,10 @@ class PrescriptionScannerService {
       confidenceScore: calculatedConfidence,
       quantity: parsedDosage.quantity,
       dosageInstruction: parsedDosage.instruction,
+      frequency: parsedDosage.frequency,
+      whenTiming: parsedDosage.whenTiming,
+      mealTiming: parsedDosage.mealTiming,
+      days: parsedDosage.days,
       isSelected: true,
     );
   }
@@ -453,13 +469,16 @@ class PrescriptionScannerService {
 
   bool _isDosageOnlyLine(String line) {
     final lower = line.toLowerCase();
-    if (RegExp(r'^(?:1-[012]-[012]|[012]-[012]-1|[012]-[012]-[012]|\b(?:od|bd|bid|tid|tds|qid|qds|sos|hs)\b)').hasMatch(lower)) {
+    if (RegExp(r'^(?:[012]\s*[-/+\s]\s*[012]\s*[-/+\s]\s*[012]|[012]{3}|\b(?:od|bd|bid|tid|tds|qid|qds|sos|hs|stat)\b)').hasMatch(lower)) {
       return true;
     }
-    if (RegExp(r'^\d+\s*(?:tabs?|tablets?|caps?|days?)\b').hasMatch(lower)) {
+    if (RegExp(r'^\d+\s*(?:tabs?|tablets?|caps?|days?|d)\b').hasMatch(lower)) {
       return true;
     }
-    if (RegExp(r'^(?:after\s*food|before\s*food|with\s*food|empty\s*stomach)\b').hasMatch(lower)) {
+    if (RegExp(r'^(?:after|before|with|post|pre)\s*(?:food|meals?|breakfast|lunch|dinner)\b').hasMatch(lower)) {
+      return true;
+    }
+    if (RegExp(r'^(?:empty\s*stomach|at\s*bedtime)\b').hasMatch(lower)) {
       return true;
     }
     return false;
@@ -488,8 +507,8 @@ class PrescriptionScannerService {
     if (RegExp(r'\b\d+(?:\.\d+)?\s*(?:mg|gm|g|mcg|ml|iu|%)\b').hasMatch(lower)) {
       return true;
     }
-    // Contains dosage frequency
-    if (RegExp(r'(?:[012]-[012]-[012]|\b(?:od|bd|tid|tds|qid|sos|hs)\b|days?)').hasMatch(lower)) {
+    // Contains dosage frequency or compact 3-digit notation
+    if (RegExp(r'(?:[012]\s*[-/+\s]\s*[012]\s*[-/+\s]\s*[012]|\b[012]{3}\b|\b(?:od|bd|tid|tds|qid|sos|hs|stat)\b|days?)').hasMatch(lower)) {
       return true;
     }
     return false;
@@ -634,19 +653,31 @@ class PrescriptionScannerService {
       '',
     );
 
-    // 4. Strip trailing instructions and dosage frequencies
+    // 4. Strip trailing instructions, dosage frequencies, and meal relations
     cleaned = cleaned.replaceAll(
-      RegExp(r'(?:1-[012]-[012]|[012]-[012]-1|[012]-[012]-[012]|\b(?:od|bd|bid|tid|tds|qid|qds|sos|hs)\b|after\s*food|before\s*food|with\s*food|empty\s*stomach|daily|thrice\s*daily|twice\s*daily|for\s*\d+\s*days?|x\s*\d+\s*days?).*$', caseSensitive: false),
+      RegExp(
+        r'(?:\b[012]\s*[-/+\s]\s*[012]\s*[-/+\s]\s*[012]\b|\b[012]{3}\b|\b(?:od|bd|bid|tid|tds|qid|qds|sos|hs|stat)\b|after\s*(?:food|meals?|breakfast|lunch|dinner)|before\s*(?:food|meals?|breakfast|lunch|dinner)|post\s*(?:food|meals?)|pre\s*(?:food|meals?)|with\s*(?:food|meals?)|empty\s*stomach|at\s*bedtime|daily|twice\s*daily|thrice\s*daily|(?:for|x)?\s*\d+\s*(?:days?|d|weeks?|wks?|months?)).*$',
+        caseSensitive: false,
+      ),
       '',
     );
 
     // 5. Strip standalone quantity notations
-    cleaned = cleaned.replaceAll(RegExp(r'\b\d+\s*(?:tabs?|tablets?|caps?|capsules?|pills?|days?)\b', caseSensitive: false), '');
+    cleaned = cleaned.replaceAll(RegExp(r'\b\d+\s*(?:tabs?|tablets?|caps?|capsules?|pills?|days?|d)\b', caseSensitive: false), '');
 
     return cleaned.trim();
   }
 
-  ({int quantity, String? instruction, String? strength, String? form}) _parseDosageAndQuantity(String line) {
+  ({
+    int quantity,
+    String? instruction,
+    String? strength,
+    String? form,
+    String? frequency,
+    String? whenTiming,
+    String? mealTiming,
+    int? days,
+  }) _parseDosageAndQuantity(String line) {
     final lower = line.toLowerCase();
     final strength = _extractStrength(line);
 
@@ -658,66 +689,182 @@ class PrescriptionScannerService {
     if (lower.contains('drop')) form = 'Drops';
     if (lower.contains('cream') || lower.contains('gel') || lower.contains('oint')) form = 'Ointment';
     if (lower.contains('inhal')) form = 'Inhaler';
+    if (lower.contains('susp')) form = 'Suspension';
 
-    // 1. Explicit quantity: "10 tabs", "15 tablets", "10 caps"
-    final explicitMatch = RegExp(r'(\d+)\s*(?:tabs?|tablets?|caps?|capsules?|pills?)', caseSensitive: false).firstMatch(lower);
+    final isLiquid = form != 'Tablet' && form != 'Capsule';
+
+    // 1. Duration / Days parsing (e.g. "x 5 days", "for 14 days", "5 days", "x 7d", "for 1 week")
+    int? parsedDays;
+    final daysMatch = RegExp(r'\b(?:for|x)?\s*(\d+)\s*(?:days?|d)\b', caseSensitive: false).firstMatch(lower);
+    if (daysMatch != null) {
+      parsedDays = int.tryParse(daysMatch.group(1) ?? '');
+    } else {
+      final weeksMatch = RegExp(r'\b(?:for|x)?\s*(\d+)\s*(?:weeks?|wks?|wk)\b', caseSensitive: false).firstMatch(lower);
+      if (weeksMatch != null) {
+        final w = int.tryParse(weeksMatch.group(1) ?? '');
+        if (w != null) parsedDays = w * 7;
+      } else {
+        final monthsMatch = RegExp(r'\b(?:for|x)?\s*(\d+)\s*(?:months?|mths?|mo)\b', caseSensitive: false).firstMatch(lower);
+        if (monthsMatch != null) {
+          final m = int.tryParse(monthsMatch.group(1) ?? '');
+          if (m != null) parsedDays = m * 30;
+        }
+      }
+    }
+
+    // 2. Meal Timing parsing
+    String? mealTiming;
+    if (RegExp(r'\b(?:after\s*(?:food|meals?|breakfast|lunch|dinner)|post\s*(?:food|meals?|lunch|dinner)|p\.?c\.?)\b', caseSensitive: false).hasMatch(lower)) {
+      mealTiming = 'After Food';
+    } else if (RegExp(r'\b(?:before\s*(?:food|meals?|breakfast|lunch|dinner)|pre\s*(?:food|meals?|lunch|dinner)|empty\s*stomach|a\.?c\.?)\b', caseSensitive: false).hasMatch(lower)) {
+      mealTiming = 'Before Food';
+    } else if (RegExp(r'\b(?:with\s*(?:food|meals?))\b', caseSensitive: false).hasMatch(lower)) {
+      mealTiming = 'With Food';
+    } else if (RegExp(r'\b(?:at\s*bedtime|before\s*sleep|night\s*only|h\.?s\.?)\b', caseSensitive: false).hasMatch(lower)) {
+      mealTiming = 'At Bedtime';
+    }
+
+    // 3. Explicit Quantity Check
+    final explicitMatch = RegExp(r'\b(\d+)\s*(?:tabs?|tablets?|caps?|capsules?|pills?)\b', caseSensitive: false).firstMatch(lower);
+    final bottleMatch = RegExp(r'\b(\d+)\s*(?:bottles?|tubes?|units?|vials?|syp)\b', caseSensitive: false).firstMatch(lower);
+
+    // 4. Frequency Parsing (Breakfast, Lunch, Dinner)
+    String? frequency;
+    int morning = 0;
+    int noon = 0;
+    int night = 0;
+    bool freqFound = false;
+
+    // 4a. Separated 3-digit frequency: e.g. "1-0-1", "1/0/1", "1+0+1", "1 0 1"
+    final sepMatch = RegExp(r'\b([012])\s*[-/+\s]\s*([012])\s*[-/+\s]\s*([012])\b').firstMatch(lower);
+    if (sepMatch != null) {
+      morning = int.tryParse(sepMatch.group(1)!) ?? 0;
+      noon = int.tryParse(sepMatch.group(2)!) ?? 0;
+      night = int.tryParse(sepMatch.group(3)!) ?? 0;
+      frequency = '$morning-$noon-$night';
+      freqFound = true;
+    }
+
+    // 4b. Compact 3-digit frequency: e.g. "101", "111", "001", "100", "010", "110", "011"
+    if (!freqFound) {
+      final compactMatch = RegExp(r'\b([012])([012])([012])\b').firstMatch(lower);
+      if (compactMatch != null) {
+        final m = int.tryParse(compactMatch.group(1)!) ?? 0;
+        final a = int.tryParse(compactMatch.group(2)!) ?? 0;
+        final n = int.tryParse(compactMatch.group(3)!) ?? 0;
+        if (m + a + n > 0) {
+          morning = m;
+          noon = a;
+          night = n;
+          frequency = '$morning-$noon-$night';
+          freqFound = true;
+        }
+      }
+    }
+
+    // 4c. Standard Latin Frequency Codes (OD, BD, TID, TDS, QID, HS, SOS, STAT)
+    if (!freqFound) {
+      if (RegExp(r'\b(?:od|o\.d\.|once\s*daily|once\s*a\s*day)\b', caseSensitive: false).hasMatch(lower)) {
+        frequency = 'OD';
+        morning = 1;
+        freqFound = true;
+      } else if (RegExp(r'\b(?:bd|b\.d\.|bid|b\.i\.d\.|twice\s*daily|twice\s*a\s*day)\b', caseSensitive: false).hasMatch(lower)) {
+        frequency = 'BD';
+        morning = 1;
+        night = 1;
+        freqFound = true;
+      } else if (RegExp(r'\b(?:tds|t\.d\.s\.|tid|t\.i\.d\.|thrice\s*daily|thrice\s*a\s*day)\b', caseSensitive: false).hasMatch(lower)) {
+        frequency = 'TDS';
+        morning = 1;
+        noon = 1;
+        night = 1;
+        freqFound = true;
+      } else if (RegExp(r'\b(?:qid|q\.i\.d\.|4\s*times\s*(?:a\s*day|daily))\b', caseSensitive: false).hasMatch(lower)) {
+        frequency = 'QID';
+        morning = 1;
+        noon = 2;
+        night = 1;
+        freqFound = true;
+      } else if (RegExp(r'\b(?:hs|h\.s\.|night\s*only)\b', caseSensitive: false).hasMatch(lower)) {
+        frequency = 'HS';
+        night = 1;
+        freqFound = true;
+      } else if (RegExp(r'\b(?:sos|s\.o\.s\.|prn|p\.r\.n\.|as\s*needed)\b', caseSensitive: false).hasMatch(lower)) {
+        frequency = 'SOS';
+        freqFound = true;
+      } else if (RegExp(r'\bstat\b', caseSensitive: false).hasMatch(lower)) {
+        frequency = 'STAT';
+        morning = 1;
+        freqFound = true;
+      }
+    }
+
+    // 5. When Timing Description (Breakfast, Lunch, Dinner breakdown)
+    String? whenTiming;
+    if (freqFound) {
+      if (frequency == 'SOS') {
+        whenTiming = 'As Needed';
+      } else if (frequency == 'STAT') {
+        whenTiming = 'Single Immediate Dose';
+      } else if (morning > 0 && noon > 0 && night > 0) {
+        whenTiming = 'Morning, Noon & Night';
+      } else if (morning > 0 && noon == 0 && night > 0) {
+        whenTiming = 'Morning & Night';
+      } else if (morning > 0 && noon == 0 && night == 0) {
+        whenTiming = 'Morning only';
+      } else if (morning == 0 && noon > 0 && night == 0) {
+        whenTiming = 'Afternoon only';
+      } else if (morning == 0 && noon == 0 && night > 0) {
+        whenTiming = 'Night only';
+      } else if (morning > 0 && noon > 0 && night == 0) {
+        whenTiming = 'Morning & Afternoon';
+      } else if (morning == 0 && noon > 0 && night > 0) {
+        whenTiming = 'Afternoon & Night';
+      }
+    }
+
+    // 6. Quantity Calculation
+    int calculatedQty = 10;
     if (explicitMatch != null) {
-      final qty = int.tryParse(explicitMatch.group(1) ?? '10') ?? 10;
-      return (quantity: qty, instruction: 'Prescribed $qty tablets', strength: strength, form: form);
+      calculatedQty = int.tryParse(explicitMatch.group(1) ?? '10') ?? 10;
+    } else if (bottleMatch != null) {
+      calculatedQty = int.tryParse(bottleMatch.group(1) ?? '1') ?? 1;
+    } else if (isLiquid) {
+      calculatedQty = 1; // Default to 1 bottle/tube for liquid syrups/drops/ointments
+    } else {
+      final dailyDoses = morning + noon + night;
+      final effectiveDays = parsedDays ?? 5;
+      calculatedQty = dailyDoses > 0 ? dailyDoses * effectiveDays : 10;
     }
 
-    // 2. Frequency with days: "1-0-1 x 5 days", "1-0-1 for 5 days"
-    final freqDaysMatch = RegExp(r'([012])-([012])-([012])\s*(?:x|for)?\s*(\d+)\s*days?', caseSensitive: false).firstMatch(lower);
-    if (freqDaysMatch != null) {
-      final morning = int.tryParse(freqDaysMatch.group(1) ?? '0') ?? 0;
-      final noon = int.tryParse(freqDaysMatch.group(2) ?? '0') ?? 0;
-      final night = int.tryParse(freqDaysMatch.group(3) ?? '0') ?? 0;
-      final days = int.tryParse(freqDaysMatch.group(4) ?? '5') ?? 5;
-      final dailyTotal = morning + noon + night;
-      final calculatedQty = dailyTotal > 0 ? dailyTotal * days : 10;
-      return (
-        quantity: calculatedQty,
-        instruction: '${freqDaysMatch.group(1)}-${freqDaysMatch.group(2)}-${freqDaysMatch.group(3)} for $days days ($calculatedQty total)',
-        strength: strength,
-        form: form,
-      );
+    // 7. Human-friendly instruction formatting
+    String? instruction;
+    if (explicitMatch != null) {
+      instruction = 'Prescribed $calculatedQty tablets';
+      if (mealTiming != null) instruction = '$instruction • $mealTiming';
+      if (parsedDays != null) instruction = '$instruction • $parsedDays days';
+    } else if (freqFound) {
+      final daysPart = parsedDays != null ? ' for $parsedDays days' : '';
+      final whenPart = whenTiming != null ? ' ($whenTiming)' : '';
+      final mealPart = mealTiming != null ? ' • $mealTiming' : '';
+      instruction = '$frequency$daysPart$whenPart$mealPart';
+    } else if (mealTiming != null || parsedDays != null) {
+      instruction = [
+        if (parsedDays != null) '$parsedDays days',
+        ?mealTiming,
+      ].join(' • ');
     }
 
-    // 3. Standalone frequency: "1-0-1" (default 5 days)
-    final standaloneFreq = RegExp(r'([012])-([012])-([012])').firstMatch(lower);
-    if (standaloneFreq != null) {
-      final morning = int.tryParse(standaloneFreq.group(1) ?? '0') ?? 0;
-      final noon = int.tryParse(standaloneFreq.group(2) ?? '0') ?? 0;
-      final night = int.tryParse(standaloneFreq.group(3) ?? '0') ?? 0;
-      final dailyTotal = morning + noon + night;
-      final defaultDays = 5;
-      final calculatedQty = dailyTotal > 0 ? dailyTotal * defaultDays : 10;
-      return (
-        quantity: calculatedQty,
-        instruction: '${standaloneFreq.group(0)} (5 days standard)',
-        strength: strength,
-        form: form,
-      );
-    }
-
-    // 4. BD/OD/TDS/TID/QID notation: e.g. "TDS x 5 days" or "BD x 5 days"
-    final codeDaysMatch = RegExp(r'\b(od|bd|bid|tid|tds|qid)\b\s*(?:x|for)?\s*(\d+)\s*days?', caseSensitive: false).firstMatch(lower);
-    if (codeDaysMatch != null) {
-      final code = codeDaysMatch.group(1)!.toLowerCase();
-      final days = int.tryParse(codeDaysMatch.group(2) ?? '5') ?? 5;
-      int perDay = 1;
-      if (code == 'bd' || code == 'bid') perDay = 2;
-      if (code == 'tid' || code == 'tds') perDay = 3;
-      if (code == 'qid') perDay = 4;
-      return (
-        quantity: perDay * days,
-        instruction: '${code.toUpperCase()} for $days days (${perDay * days} total)',
-        strength: strength,
-        form: form,
-      );
-    }
-
-    return (quantity: 10, instruction: null, strength: strength, form: form);
+    return (
+      quantity: calculatedQty,
+      instruction: instruction,
+      strength: strength,
+      form: form,
+      frequency: frequency,
+      whenTiming: whenTiming,
+      mealTiming: mealTiming,
+      days: parsedDays,
+    );
   }
 
   String _formatTitleCase(String text) {

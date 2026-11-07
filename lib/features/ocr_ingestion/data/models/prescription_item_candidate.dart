@@ -7,6 +7,10 @@ class PrescriptionItemCandidate {
   final double confidenceScore;
   int quantity;
   final String? dosageInstruction;
+  final String? frequency; // e.g. "1-0-1", "1-1-1", "0-0-1", "OD", "BD", "TDS"
+  final String? whenTiming; // e.g. "Morning & Night", "Breakfast & Dinner"
+  final String? mealTiming; // e.g. "After Food", "Before Food", "At Bedtime"
+  final int? days; // e.g. 5, 7, 10, 14, 30
   bool isSelected;
 
   PrescriptionItemCandidate({
@@ -15,6 +19,10 @@ class PrescriptionItemCandidate {
     required this.confidenceScore,
     this.quantity = 10,
     this.dosageInstruction,
+    this.frequency,
+    this.whenTiming,
+    this.mealTiming,
+    this.days,
     this.isSelected = true,
   });
 
@@ -27,6 +35,10 @@ class PrescriptionItemCandidate {
     double? confidenceScore,
     int? quantity,
     String? dosageInstruction,
+    String? frequency,
+    String? whenTiming,
+    String? mealTiming,
+    int? days,
     bool? isSelected,
   }) {
     return PrescriptionItemCandidate(
@@ -35,6 +47,10 @@ class PrescriptionItemCandidate {
       confidenceScore: confidenceScore ?? this.confidenceScore,
       quantity: quantity ?? this.quantity,
       dosageInstruction: dosageInstruction ?? this.dosageInstruction,
+      frequency: frequency ?? this.frequency,
+      whenTiming: whenTiming ?? this.whenTiming,
+      mealTiming: mealTiming ?? this.mealTiming,
+      days: days ?? this.days,
       isSelected: isSelected ?? this.isSelected,
     );
   }
