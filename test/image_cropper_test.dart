@@ -76,6 +76,24 @@ void main() {
       expect(frame.image.height, equals(200));
     });
 
+    test('Handles 90 degree anti-clockwise rotation (270 degrees) and swaps dimensions', () async {
+      // Rotated 270 deg (anti-clockwise 90): 200x400 -> 400x200
+      final rotatedPath = await service.rotateImageOnly(
+        imagePath: testImagePath,
+        rotationDegrees: 270,
+      );
+
+      final rotatedFile = File(rotatedPath);
+      expect(rotatedFile.existsSync(), isTrue);
+
+      final bytes = await rotatedFile.readAsBytes();
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+
+      expect(frame.image.width, equals(400));
+      expect(frame.image.height, equals(200));
+    });
+
     test('Clamps out-of-bounds crop coordinates safely without crashing', () async {
       // Out of bounds crop request
       final croppedPath = await service.cropImage(

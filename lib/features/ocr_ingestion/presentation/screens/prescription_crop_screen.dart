@@ -95,6 +95,14 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
     });
   }
 
+  void _rotateCounterClockwise() {
+    setState(() {
+      _rotationDegrees = (_rotationDegrees - 90 + 360) % 360;
+      // Invalidate quad so it re-centers on the newly rotated orientation
+      _quad = null;
+    });
+  }
+
   void _resetCrop() {
     setState(() {
       _quad = null;
@@ -313,21 +321,30 @@ class _PrescriptionCropScreenState extends ConsumerState<PrescriptionCropScreen>
             Text(
               'Free Perspective Crop',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
             Text(
               'Drag any corner to match prescription angle',
               style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ],
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.rotate_left_rounded, size: 24, color: AppColors.primary),
+            tooltip: 'Rotate 90° Anti-Clockwise',
+            onPressed: _isLoading || _isProcessing ? null : _rotateCounterClockwise,
+          ),
+          IconButton(
             icon: const Icon(Icons.rotate_right_rounded, size: 24, color: AppColors.primary),
-            tooltip: 'Rotate 90°',
+            tooltip: 'Rotate 90° Clockwise',
             onPressed: _isLoading || _isProcessing ? null : _rotateClockwise,
           ),
           IconButton(
-            icon: const Icon(Icons.restart_alt_rounded, size: 24, color: AppColors.textSecondary),
+            icon: const Icon(Icons.restart_alt_rounded, size: 22, color: AppColors.textSecondary),
             tooltip: 'Reset Corners',
             onPressed: _isLoading || _isProcessing ? null : _resetCrop,
           ),
