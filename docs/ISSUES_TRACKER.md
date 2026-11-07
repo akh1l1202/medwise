@@ -17,7 +17,7 @@
 | **5** | Remove assumed 10-tab quantity selector from Chemist Counter buy page (handle syrups, drops, liquids) | 🟢 **Completed** | UX / Domain Logic |
 | **6** | Fix bottom pixel overflow when tapping search bar under "Enter Prescribed Medicine" | 🟢 **Completed** | Bug / Keyboard Avoidance |
 | **7** | Remove duplicate "Scan Slip" button on Chemist Counter (currently in top-right AppBar and above search bar) | 🟢 **Completed** | UI / Redundant Action |
-| **8** | Fix excessive empty whitespace in bottom sheet modal on Scan Slip (dynamically wrap content to ~50% height) | ⚪ Pending User Gate | UI / BottomSheet UX |
+| **8** | Fix excessive empty whitespace in bottom sheet modal on Scan Slip (dynamically wrap content to ~50% height) | 🟢 **Completed** | UI / BottomSheet UX |
 | **9** | Add anti-clockwise 90° rotation and style both rotate buttons in Deep Teal on free perspective crop screen | ⚪ Pending User Gate | Feature / Crop UX |
 | **10** | Enhanced prescription intake parsing (number of days, dosage frequency `1-0-1`, `1-1-1`, `0-0-1`, timing before/after meals) | ⚪ Pending User Gate | Domain Logic / NLP Parser |
 | **11** | Feasibility analysis & architecture report for Google AI / Gemini Vision API hybrid OCR fallback | ⚪ Pending User Gate | Architectural Report / AI Integration |
@@ -198,6 +198,27 @@
   - `dart analyze`: **0 warnings / 0 errors**.
   - `flutter test`: **All 45 unit and widget tests pass**.
   - **Deployed to device:** Compiled debug APK and streamed installation to physical phone (`CPH2613`). Verified that the AppBar top-right is clean and only the contextual "Scan Slip" pill button is displayed above the search field. Fully resolved.
+
+---
+
+### Issue 8: Fix Excessive Empty Whitespace in Bottom Sheet Modal on "Scan Slip"
+* **Status:** 🟢 **Completed & Deployed**
+* **Root Cause:** In [`PrescriptionScanModal`](../lib/features/chemist_counter/presentation/widgets/prescription_scan_modal.dart), the root `Container` was constrained to `maxHeight: MediaQuery.of(context).size.height * 0.88`, and its child was a `Column` with default `mainAxisSize: MainAxisSize.max`.
+  In the initial upload prompt state (`_imagePath == null`), the children inside the modal (drag handle, header, and Camera/Gallery picker card) only required $\approx 320\text{px}$ of vertical height. Because `Column` defaulted to `MainAxisSize.max`, the modal expanded to the full $88\%$ of the screen ($\approx 700\text{px}$ on standard devices), leaving $\approx 380\text{px}$ of completely blank, empty whitespace below the action buttons.
+* **Changes Made:**
+  1. **Dynamic Content Wrapping:** Split the modal body into a dual-mode layout:
+     - When `_imagePath == null` (initial photo prompt state): Wrapped the content in `SingleChildScrollView(physics: const BouncingScrollPhysics(), child: Column(mainAxisSize: MainAxisSize.min, ...))`. This ensures the bottom sheet measures its children naturally and rolls up to **only the required height ($\approx 45-50\%$ of screen height)** with balanced top and bottom margins, completely eliminating the empty void.
+     - When `_imagePath != null` (OCR results, verification, and editing): Seamlessly switches to `Column(crossAxisAlignment: CrossAxisAlignment.start, ...)` with `Expanded` scrollable candidate lists, utilizing up to $88\%$ of the viewport for reviewing detected medicines and adjusting quantities.
+  2. **Refined Picker Card & Responsive Buttons:**
+     - Restyled `_buildInitialUploadPrompt()` with a circular emerald scanner icon, balanced padding, and wrapped Camera & Gallery buttons in `Expanded` inside a responsive `Row` to eliminate horizontal line pressure on narrow devices.
+  3. **Automated Verification Test:** Added a test in [`test/chemist_counter_overflow_test.dart`](../test/chemist_counter_overflow_test.dart) asserting that on an $800\text{px}$ tall screen, opening `PrescriptionScanModal` produces a snug modal height well below $500\text{px}$ (measuring $\approx 45-50\%$) with zero layout overflows.
+* **Redundant Code Removed:**
+  - Removed rigid fixed `Column(mainAxisSize: MainAxisSize.max)` in the initial scan prompt.
+  - Eliminated oversized, disconnected margin blocks inside the picker container.
+* **Resolution & Testing Status:**
+  - `dart analyze`: **0 warnings / 0 errors**.
+  - `flutter test`: **All 46 unit and widget tests pass**.
+  - **Deployed to device:** Compiled debug APK and streamed installation to physical phone (`CPH2613`). Tapping "Scan Slip" now rolls up an elegant, compact modal taking up ~50% of the screen directly framing the Camera and Gallery actions with no dead space. Fully resolved.
 
 ---
 
