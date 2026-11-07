@@ -19,7 +19,7 @@
 | **7** | Remove duplicate "Scan Slip" button on Chemist Counter (currently in top-right AppBar and above search bar) | 🟢 **Completed** | UI / Redundant Action |
 | **8** | Fix excessive empty whitespace in bottom sheet modal on Scan Slip (dynamically wrap content to ~50% height) | 🟢 **Completed** | UI / BottomSheet UX |
 | **9** | Add anti-clockwise 90° rotation and style both rotate buttons in Deep Teal on free perspective crop screen | 🟢 **Completed** | Feature / Crop UX |
-| **10** | Enhanced prescription intake parsing (number of days, dosage frequency `1-0-1`, `1-1-1`, `0-0-1`, timing before/after meals) | ⚪ Pending User Gate | Domain Logic / NLP Parser |
+| **10** | Enhanced prescription intake parsing (number of days, dosage frequency `1-0-1`, `101`, `111`, `001`, timing before/after meals) | 🟢 **Completed** | Domain Logic / NLP Parser |
 | **11** | Feasibility analysis & architecture report for Google AI / Gemini Vision API hybrid OCR fallback | ⚪ Pending User Gate | Architectural Report / AI Integration |
 | **12** | Audit and improve medicine blister strip packaging OCR & expiry matching against cabinet inventory | ⚪ Pending User Gate | ML Kit OCR / Packaging Scanner |
 | **13** | Audit and fix remaining screen pixel overflows across all tabs & views with comprehensive audit tally | ⚪ Pending User Gate | Responsive Polish / Screen Audit |
@@ -244,6 +244,41 @@
   - `dart analyze`: **0 warnings / 0 errors**.
   - `flutter test`: **All 48 unit and widget tests pass**.
   - **Deployed to device:** Compiled debug APK and streamed installation to physical phone (`CPH2613`). The top-right now displays only the two green rotation controls (↺ Anti-Clockwise and ↻ Clockwise) with zero third icon clutter. Fully resolved.
+
+---
+
+### Issue 10: Enhanced Prescription Intake Parsing (Days, Frequencies, & Meal Timings)
+* **Status:** 🟢 **Completed & Deployed**
+* **Root Cause:**
+  1. **Strict Dash-Separated RegEx:** The dosage parser only recognized explicitly hyphenated frequencies like `1-0-1` or `0-1-0`. In real Indian clinical practice, doctors and clinic OPD software frequently write compact digit notation without separators (e.g. `101`, `111`, `001`, `100`, `010`), or use slashes/pluses (`1/0/1`, `1+0+1`, `1 0 1`).
+  2. **Missing Meal Timing Extraction:** Notations like `"after food"`, `"before meals"`, `"empty stomach"`, `"at bedtime"` were either dropped or left as unparsed noise text in the line.
+  3. **Missing Structured Duration & Breakdown Fields:** Candidate models lacked structured fields (`frequency`, `whenTiming`, `mealTiming`, `days`), preventing the UI from displaying structured clinical chips (e.g., `🕒 1-0-1 (Morning & Night) • 🍽️ After Food • 📅 5 Days`).
+  4. **Overmultiplication for Liquids & Drops:** When a syrup was prescribed with duration (e.g. `Ascoril LS TDS x 5 days`), naive frequency multiplication could assume 15 bottles instead of 1 bottle.
+* **Changes Made:**
+  1. **Extended Data Models ([`prescription_item_candidate.dart`](../lib/features/ocr_ingestion/data/models/prescription_item_candidate.dart) & [`chemist_cart_item.dart`](../lib/features/chemist_counter/data/models/chemist_cart_item.dart)):**
+     - Added structured fields: `frequency` (e.g. `1-0-1`), `whenTiming` (e.g. `Morning & Night`), `mealTiming` (e.g. `After Food`), and `days` (e.g. `5`).
+     - Added `dosageInstruction` to `ChemistCartItem` so imported items retain prescription dosing instructions throughout the Chemist Counter review.
+  2. **Comprehensive RegEx Parser ([`prescription_scanner_service.dart`](../lib/features/ocr_ingestion/domain/services/prescription_scanner_service.dart)):**
+     - Added support for compact Indian 3-digit frequency notation: `101`, `111`, `001`, `100`, `010`, `011`, `110`.
+     - Added support for alternative delimiters: `1-0-1`, `1/0/1`, `1+0+1`, `1 0 1`, `1 - 0 - 1`.
+     - Added standard Latin clinical frequency mapping: `OD` (Once Daily), `BD` / `BID` (Twice Daily), `TDS` / `TID` (Thrice Daily), `QID` (4 times daily), `HS` (At Bedtime), `SOS` / `PRN` (As Needed), `STAT` (Single Immediate Dose).
+     - Added meal timing extraction: `After Food` / `PC`, `Before Food` / `AC` / `Empty Stomach`, `With Food`, `At Bedtime`.
+     - Added duration extraction in days: `x 5 days`, `for 14 days`, `x 7d`, `for 1 week` (7 days), `for 1 month` (30 days).
+     - Added daily dose breakdown logic mapping to time of day (`Morning only`, `Night only`, `Morning & Night`, `Morning, Noon & Night`, etc.).
+     - Implemented form-aware quantity calculations (maintains 1 unit for syrups/drops/ointments while calculating `dailyDoses * days` for oral tablets).
+  3. **UI Enhancements ([`prescription_scan_modal.dart`](../lib/features/chemist_counter/presentation/widgets/prescription_scan_modal.dart) & [`chemist_counter_screen.dart`](../lib/features/chemist_counter/presentation/screens/chemist_counter_screen.dart)):**
+     - Displayed emerald schedule badge with `Icons.schedule_rounded` on candidate cards in the prescription review modal.
+     - Preserved and displayed `dosageInstruction` chip on Chemist Cart items when imported from scanned prescriptions.
+  4. **Automated Unit & Widget Tests ([`test/prescription_scanner_test.dart`](../test/prescription_scanner_test.dart)):**
+     - Added tests for compact frequencies (`101`, `111`, `001`, `100`).
+     - Added tests for meal timing and duration parsing.
+     - Added tests for liquid syrup 1 bottle defaults.
+* **Redundant Code Removed:**
+  - Removed old fragmented dosage regex branches and consolidated into a unified structured extractor.
+* **Resolution & Testing Status:**
+  - `dart analyze`: **0 warnings / 0 errors**.
+  - `flutter test`: **All 50 unit and widget tests pass**.
+  - **Deployed to device:** Compiled debug APK and streamed installation to physical phone (`CPH2613`). The parser accurately extracts frequencies, days, and meal timings and passes them cleanly into Chemist Cart cards. Fully resolved.
 
 ---
 
