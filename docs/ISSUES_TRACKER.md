@@ -18,7 +18,7 @@
 | **6** | Fix bottom pixel overflow when tapping search bar under "Enter Prescribed Medicine" | 🟢 **Completed** | Bug / Keyboard Avoidance |
 | **7** | Remove duplicate "Scan Slip" button on Chemist Counter (currently in top-right AppBar and above search bar) | 🟢 **Completed** | UI / Redundant Action |
 | **8** | Fix excessive empty whitespace in bottom sheet modal on Scan Slip (dynamically wrap content to ~50% height) | 🟢 **Completed** | UI / BottomSheet UX |
-| **9** | Add anti-clockwise 90° rotation and style both rotate buttons in Deep Teal on free perspective crop screen | ⚪ Pending User Gate | Feature / Crop UX |
+| **9** | Add anti-clockwise 90° rotation and style both rotate buttons in Deep Teal on free perspective crop screen | 🟢 **Completed** | Feature / Crop UX |
 | **10** | Enhanced prescription intake parsing (number of days, dosage frequency `1-0-1`, `1-1-1`, `0-0-1`, timing before/after meals) | ⚪ Pending User Gate | Domain Logic / NLP Parser |
 | **11** | Feasibility analysis & architecture report for Google AI / Gemini Vision API hybrid OCR fallback | ⚪ Pending User Gate | Architectural Report / AI Integration |
 | **12** | Audit and improve medicine blister strip packaging OCR & expiry matching against cabinet inventory | ⚪ Pending User Gate | ML Kit OCR / Packaging Scanner |
@@ -219,6 +219,31 @@
   - `dart analyze`: **0 warnings / 0 errors**.
   - `flutter test`: **All 46 unit and widget tests pass**.
   - **Deployed to device:** Compiled debug APK and streamed installation to physical phone (`CPH2613`). Tapping "Scan Slip" now rolls up an elegant, compact modal taking up ~50% of the screen directly framing the Camera and Gallery actions with no dead space. Fully resolved.
+
+---
+
+### Issue 9: Add Anti-Clockwise 90° Rotation & Style Both Rotate Buttons in Deep Teal
+* **Status:** 🟢 **Completed & Deployed**
+* **Root Cause:** In [`PrescriptionCropScreen`](../lib/features/ocr_ingestion/presentation/screens/prescription_crop_screen.dart):
+  1. The AppBar previously displayed only two action buttons: `Icons.rotate_right_rounded` (Rotate 90° clockwise) and `Icons.restart_alt_rounded` (Reset Corners). Because `Icons.restart_alt_rounded` renders as a counter-clockwise looped arrow ↺, users naturally expected it to rotate the prescription anti-clockwise by $90^\circ$. Instead, it was styled in muted gray (`AppColors.textSecondary`) and only reset the corner polygon anchors (`_resetCrop()`).
+  2. There was no dedicated anti-clockwise rotation method (`_rotateCounterClockwise`) or button in the interface.
+* **Changes Made:**
+  1. **Anti-Clockwise Rotation Method:** Implemented `_rotateCounterClockwise()` in `_PrescriptionCropScreenState`, calculating `_rotationDegrees = (_rotationDegrees - 90 + 360) % 360` and invalidating `_quad` so the perspective crop box automatically re-centers on the newly rotated orientation.
+  2. **Dual Teal Rotate Buttons:**
+     - Added `IconButton(icon: Icon(Icons.rotate_left_rounded, size: 24, color: AppColors.primary), tooltip: 'Rotate 90° Anti-Clockwise', onPressed: _rotateCounterClockwise)`.
+     - Preserved `IconButton(icon: Icon(Icons.rotate_right_rounded, size: 24, color: AppColors.primary), tooltip: 'Rotate 90° Clockwise', onPressed: _rotateClockwise)`.
+     - Both rotate buttons are now prominently styled in brand Deep Teal (`AppColors.primary`).
+  3. **Dedicated Reset Button:** Maintained a separate `Icons.restart_alt_rounded` button (`tooltip: 'Reset Corners'`) for resetting the 4 polygon handles.
+  4. **Overflow Protection:** Wrapped the AppBar title texts in `TextOverflow.ellipsis` and `maxLines: 1` to guarantee zero horizontal crowding or overflow on compact viewports with 3 action buttons.
+  5. **Automated Unit & Widget Tests:**
+     - Added unit test in [`test/image_cropper_test.dart`](../test/image_cropper_test.dart) verifying $270^\circ$ (anti-clockwise $90^\circ$) bitmap transformation and dimension swapping.
+     - Created [`test/prescription_crop_screen_test.dart`](../test/prescription_crop_screen_test.dart) testing both rotate buttons exist, are colored `AppColors.primary`, and execute rotation without exceptions.
+* **Redundant Code Removed:**
+  - Removed misleading single-direction rotation restriction.
+* **Resolution & Testing Status:**
+  - `dart analyze`: **0 warnings / 0 errors**.
+  - `flutter test`: **All 48 unit and widget tests pass**.
+  - **Deployed to device:** Compiled debug APK and streamed installation to physical phone (`CPH2613`). Verified that both ↺ and ↻ buttons are styled in emerald teal and rotate the image by $90^\circ$ anti-clockwise and clockwise respectively. Fully resolved.
 
 ---
 
